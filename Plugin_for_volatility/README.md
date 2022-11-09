@@ -58,5 +58,3 @@ python.exe vol.py -vv -f "C:\windows\hvmm.dmp" windows.pslist
 ```
  
 ![](./images/image001.png)
-
-if you have problem with kernel signature scanning you need change PDB-finding alghorithm

@@ -31,7 +31,7 @@ from volatility3.framework.layers import hyperv
 
 For current version of volatility3 it looks:
 
-```
+```python
 import logging
 import sys
 import traceback

@@ -51,7 +51,6 @@ from volatility3.framework.layers import physical
 from volatility3.framework.layers import hyperv
 ```
 
-
 5.2. Find string
 
 ```python

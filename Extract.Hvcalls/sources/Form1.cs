@@ -1,3 +1,8 @@
+//
+// __author__ = "Gerhart"
+// __license__ = "GPL3"
+//
+
 using static System.Net.Mime.MediaTypeNames;
 using System.Collections;
 using System.IO;
@@ -14,9 +19,10 @@ namespace HvcallGui
 
         public string g_dir_with_hvcalls_bin = "";
         public string g_path_to_ida = "";
-        public string g_path_to_script = "";
+        public string g_path_to_script_folder = "";
         public string g_script_name = "extract_hvcalls.py";
         public string g_union_json_script_name = "hvcalls_merge.py";
+        public string g_config_name = "config.json";
 
         public string[] g_hvFiles = { "winhvr.sys", "winhv.sys", "securekernel.exe", "ntoskrnl.exe", "ntkrla57.exe", "securekernella57.exe" };
 
@@ -25,121 +31,32 @@ namespace HvcallGui
             InitializeComponent();
         }
 
-        //https://stackoverflow.com/questions/27680977/wait-for-multiple-processes-to-complete
-        private void RunParallelScript(string idaPath, List<string> listOfScripts)
+        public void PrintText(string Text)
         {
-            List<Task> tasks = new List<Task>();
-            foreach (string script in listOfScripts)
-            {
-                string tmpScript = script;
-                tasks.Add(Task.Run(delegate {
-                    ProcessStartInfo myProcess = new ProcessStartInfo();
-                    myProcess.FileName = idaPath;
-                    myProcess.Arguments = tmpScript;
-                    Process.Start(myProcess).WaitForExit();
-                }));
-            }
-            Task.WaitAll(tasks.ToArray());
+            richTextBox1.AppendText(Text);
         }
 
         private void GetHvcallBinaries(HvcallGui.frmForm01 form)
         {
-            string systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System) + "\\";
-
-            foreach (string fileName in g_hvFiles)
+            if (form.txtPathToHvcallBins.Text != "")
             {
-                string file = "";
-                if (fileName.Contains(".sys"))
-                {
-                    file = systemDir + "drivers\\" + fileName;
-                }
-                else
-                {
-                    file = systemDir + fileName;
-                }
-
-                if (File.Exists(file))
-                {
-                    File.Copy(g_dir_with_hvcalls_bin, file);
-                }
-                else
-                {
-                    form.richTextBox1.AppendText("File " + fileName + " is not found\n");
-                }
+                g_dir_with_hvcalls_bin = form.txtPathToHvcallBins.Text;
             }
+
+            ModuleHvCalls.GetHvcallBinaries(g_hvFiles, g_dir_with_hvcalls_bin, form);
         }
 
         public void HvcallExtract()
         {
-            if (Directory.Exists(g_dir_with_hvcalls_bin) == false)
-            {
-                richTextBox1.AppendText("Specify the directory with Hyper-V binaries\n");
-                return;
-            }
-
-            if (File.Exists(g_path_to_ida) == false)
-            {
-                richTextBox1.AppendText("Specify the IDA PRO executable (file ida64.exe)\n");
-                return;
-            }
-
-            if (File.Exists(g_path_to_script) == false)
-            {
-                richTextBox1.AppendText("Specify the directory with hvcall_path.py\n");
-                return;
-            }
-
-            List<string> listOfScripts = new List<string>();
-
-            string[] formats = { ".sys", ".exe" };
-            var hvFiles = Directory.EnumerateFiles(g_dir_with_hvcalls_bin, "*.*", SearchOption.TopDirectoryOnly).Where(x => formats.Any(x.EndsWith));
-
-            foreach (string currentFile in hvFiles)
-            {
-                if (currentFile is null)
-                    continue;
-
-                FileVersionInfo fileVersion = FileVersionInfo.GetVersionInfo(currentFile);
-                string shortIDB = Path.GetFileNameWithoutExtension(currentFile) + ".i64";
-                string shortFileName = Path.GetFileName(currentFile);
-                string fileDir = Path.GetDirectoryName(currentFile);
-
-                string idbPath = currentFile + ".i64";
-                string idaParam = "";
-                if (File.Exists(idbPath) == true)
-                {
-                    string pathToScriptWithQuotes = '"' + g_path_to_script + '"';
-                    string pathToIDBWithQuotas = '"' + idbPath + '"';
-                    idaParam = "-A -S" + pathToScriptWithQuotes + " " + pathToIDBWithQuotas;
-
-                    richTextBox1.AppendText("processing .i64[.idb] file: " + shortIDB + "...  " + fileVersion.FileVersion +"\n");
-                }
-                else
-                {
-                    if (chkBoxProcessIDB.Checked == false)
-                    {
-                        idaParam = "-c -B " + currentFile;
-                    }
-                    else
-                    {
-                        string pathToScriptWithQuotes = '"' + g_path_to_script + '"';
-                        string pathToFileWithQuotas = '"' + currentFile + '"';
-                        idaParam = "-c -A -S" + pathToScriptWithQuotes + " " + pathToFileWithQuotas;
-                    }
-
-                    richTextBox1.AppendText("processing file " + Path.GetFileName(currentFile) + "...  " + fileVersion.FileVersion + "\n");
-                }
-
-                listOfScripts.Add(idaParam);
-            }
-
-            RunParallelScript(g_path_to_ida, listOfScripts);
-            richTextBox1.AppendText("Files processing are finished. Run hvcalls_merge.py ...\n");
-
-            string pythonPath = ParseHvCall.GetPythonPath();
-            string fullScriptPath = Directory.GetCurrentDirectory() + "\\" + g_union_json_script_name;
-
-            System.Diagnostics.Process.Start(pythonPath, fullScriptPath);
+            ModuleHvCalls.HvcallExtract(
+                this,
+                g_dir_with_hvcalls_bin,
+                g_path_to_ida,
+                g_path_to_script_folder,
+                g_union_json_script_name,
+                chkBoxProcessIDB.Checked,
+                g_script_name
+            );
         }
         private void btnPathToIda_Click(object sender, EventArgs e)
         {
@@ -150,6 +67,11 @@ namespace HvcallGui
             ofdOpenIda.FilterIndex = 0;
             ofdOpenIda.RestoreDirectory = true;
 
+            if (txtPathToIda.Text != "")
+            {
+                ofdOpenIda.FileName = txtPathToIda.Text;
+            }
+
             if (ofdOpenIda.ShowDialog() == DialogResult.OK)
             {
                 txtPathToIda.Text = ofdOpenIda.FileName;
@@ -159,6 +81,11 @@ namespace HvcallGui
 
         private void btnSelectHvBins_Click(object sender, EventArgs e)
         {
+            if (txtPathToHvcallBins.Text != "")
+            {
+                folderBrowserDialog1.SelectedPath = txtPathToHvcallBins.Text;
+            }
+
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
                 txtPathToHvcallBins.Text = folderBrowserDialog1.SelectedPath;
@@ -168,13 +95,13 @@ namespace HvcallGui
 
         private void button1_Click(object sender, EventArgs e)
         {
-            string pythonPath = ParseHvCall.GetPythonPath("3.1", "3.10");
+            string pythonPath = ParseHvCall.GetPythonPath("3.1", "3.11");
             return;
         }
 
         private void ReadConfigAndFilltxtBoxes()
         {
-            string cfgFile = Directory.GetCurrentDirectory() + "\\config.json";
+            string cfgFile = Directory.GetCurrentDirectory() + "\\" + g_config_name;
 
             if (!File.Exists(cfgFile))
             {
@@ -182,14 +109,16 @@ namespace HvcallGui
                 return;
             }
 
-            ParseHvCall.ConfigFile cfg = ParseHvCall.ReadConfig(Directory.GetCurrentDirectory() + "\\config.json");
+            ParseHvCall.ConfigFile cfg = ParseHvCall.ReadConfig(Directory.GetCurrentDirectory() + "\\" + g_config_name);
             if (cfg != null)
             {
                 txtPathToHvcallBins.Text = cfg.WindowsBinaryPath;
                 txtPathToIda.Text = cfg.IdaPath;
+                txtScriptPath.Text = cfg.ScriptPath;
                 g_dir_with_hvcalls_bin = cfg.WindowsBinaryPath;
                 g_path_to_ida = cfg.IdaPath;
-                g_path_to_script = Directory.GetCurrentDirectory() + "\\" + g_script_name;
+                //g_path_to_script_folder = Directory.GetCurrentDirectory() + "\\" + g_script_name;
+                g_path_to_script_folder = cfg.ScriptPath;
             }
         }
 
@@ -211,6 +140,20 @@ namespace HvcallGui
         private void button2_Click(object sender, EventArgs e)
         {
             GetHvcallBinaries(this);
+        }
+
+        private void btnPathToScripts_Click(object sender, EventArgs e)
+        {
+            if (txtScriptPath.Text != "")
+            {
+                folderBrowserDialog1.SelectedPath = txtScriptPath.Text;
+            }
+
+            if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
+            {
+                txtScriptPath.Text = folderBrowserDialog1.SelectedPath;
+                g_path_to_script_folder = folderBrowserDialog1.SelectedPath;
+            }
         }
     }
 }

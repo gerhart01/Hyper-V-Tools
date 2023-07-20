@@ -1,3 +1,8 @@
+//
+// __author__ = "Gerhart"
+// __license__ = "GPL3"
+//
+
 using System.Diagnostics;
 using System.Windows.Forms;
 

@@ -1,5 +1,10 @@
 ﻿using Microsoft.Win32;  
 using System;
+//
+// __author__ = "Gerhart"
+// __license__ = "GPL3"
+//
+
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -27,7 +32,9 @@ namespace HvcallGui
             return true;
         }
 
-        //https://stackoverflow.com/questions/41920032/automatically-find-the-path-of-the-python-executable 
+        //
+        // https://stackoverflow.com/questions/41920032/automatically-find-the-path-of-the-python-executable 
+        //
         public static string GetPythonPath(string requiredVersion = "", string maxVersion = "")
         {
             string[] possiblePythonLocations = new string[3] 
@@ -39,11 +46,6 @@ namespace HvcallGui
 
             //Version number, install path
             Dictionary<string, string> pythonLocations = new Dictionary<string, string>();
-
-            //foreach (string possibleLocation in possiblePythonLocations)
-            //{
-            //    CheckRegistryPath(possibleLocation);
-            //}
 
             foreach (string possibleLocation in possiblePythonLocations)
             {
@@ -127,8 +129,7 @@ namespace HvcallGui
                 }
 
                 //Console.WriteLine(highestVersion);
-                //Console.WriteLine(highestVersionPath);
-                
+                //Console.WriteLine(highestVersionPath);       
             }
 
             return highestVersionPath;
@@ -138,10 +139,12 @@ namespace HvcallGui
         {
             public string IdaPath { get; }
             public string WindowsBinaryPath { get;}
-            public ConfigFile(string idaPath, string windowsBinaryPath)
+            public string ScriptPath { get; }
+            public ConfigFile(string idaPath, string windowsBinaryPath, string scriptPath)
             {
                 IdaPath = idaPath;
                 WindowsBinaryPath = windowsBinaryPath;
+                ScriptPath = scriptPath;
             }
         }
 

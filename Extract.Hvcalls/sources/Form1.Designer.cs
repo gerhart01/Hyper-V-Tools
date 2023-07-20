@@ -28,121 +28,162 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.txtPathToHvcallBins = new System.Windows.Forms.TextBox();
-            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
-            this.btnHvcallBins = new System.Windows.Forms.Button();
-            this.btnPathToIda = new System.Windows.Forms.Button();
-            this.txtPathToIda = new System.Windows.Forms.TextBox();
-            this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
-            this.btnStart = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
-            this.chkBoxProcessIDB = new System.Windows.Forms.CheckBox();
-            this.button2 = new System.Windows.Forms.Button();
-            this.SuspendLayout();
+            txtPathToHvcallBins = new TextBox();
+            richTextBox1 = new RichTextBox();
+            btnHvcallBins = new Button();
+            btnPathToIda = new Button();
+            txtPathToIda = new TextBox();
+            folderBrowserDialog1 = new FolderBrowserDialog();
+            btnStart = new Button();
+            chkBoxProcessIDB = new CheckBox();
+            button2 = new Button();
+            txtScriptPath = new TextBox();
+            lblPathToBinaries = new Label();
+            label1 = new Label();
+            label2 = new Label();
+            btnPathToScripts = new Button();
+            SuspendLayout();
             // 
             // txtPathToHvcallBins
             // 
-            this.txtPathToHvcallBins.Location = new System.Drawing.Point(12, 29);
-            this.txtPathToHvcallBins.Name = "txtPathToHvcallBins";
-            this.txtPathToHvcallBins.Size = new System.Drawing.Size(480, 31);
-            this.txtPathToHvcallBins.TabIndex = 1;
+            txtPathToHvcallBins.Location = new Point(168, 15);
+            txtPathToHvcallBins.Name = "txtPathToHvcallBins";
+            txtPathToHvcallBins.Size = new Size(816, 31);
+            txtPathToHvcallBins.TabIndex = 1;
             // 
             // richTextBox1
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(12, 247);
-            this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(1006, 311);
-            this.richTextBox1.TabIndex = 2;
-            this.richTextBox1.Text = "";
+            richTextBox1.Location = new Point(12, 221);
+            richTextBox1.Name = "richTextBox1";
+            richTextBox1.Size = new Size(1330, 476);
+            richTextBox1.TabIndex = 2;
+            richTextBox1.Text = "";
             // 
             // btnHvcallBins
             // 
-            this.btnHvcallBins.Location = new System.Drawing.Point(685, 12);
-            this.btnHvcallBins.Name = "btnHvcallBins";
-            this.btnHvcallBins.Size = new System.Drawing.Size(333, 34);
-            this.btnHvcallBins.TabIndex = 3;
-            this.btnHvcallBins.Text = "Path to binaries";
-            this.btnHvcallBins.UseVisualStyleBackColor = true;
-            this.btnHvcallBins.Click += new System.EventHandler(this.btnSelectHvBins_Click);
+            btnHvcallBins.Location = new Point(1009, 13);
+            btnHvcallBins.Name = "btnHvcallBins";
+            btnHvcallBins.Size = new Size(333, 34);
+            btnHvcallBins.TabIndex = 3;
+            btnHvcallBins.Text = "Select";
+            btnHvcallBins.UseVisualStyleBackColor = true;
+            btnHvcallBins.Click += btnSelectHvBins_Click;
             // 
             // btnPathToIda
             // 
-            this.btnPathToIda.Location = new System.Drawing.Point(683, 63);
-            this.btnPathToIda.Name = "btnPathToIda";
-            this.btnPathToIda.Size = new System.Drawing.Size(335, 34);
-            this.btnPathToIda.TabIndex = 4;
-            this.btnPathToIda.Text = "Select path to IDA PRO";
-            this.btnPathToIda.UseVisualStyleBackColor = true;
-            this.btnPathToIda.Click += new System.EventHandler(this.btnPathToIda_Click);
+            btnPathToIda.Location = new Point(1007, 64);
+            btnPathToIda.Name = "btnPathToIda";
+            btnPathToIda.Size = new Size(335, 30);
+            btnPathToIda.TabIndex = 4;
+            btnPathToIda.Text = "Select";
+            btnPathToIda.UseVisualStyleBackColor = true;
+            btnPathToIda.Click += btnPathToIda_Click;
             // 
             // txtPathToIda
             // 
-            this.txtPathToIda.Location = new System.Drawing.Point(13, 94);
-            this.txtPathToIda.Name = "txtPathToIda";
-            this.txtPathToIda.Size = new System.Drawing.Size(479, 31);
-            this.txtPathToIda.TabIndex = 5;
-            this.txtPathToIda.TextChanged += new System.EventHandler(this.txtPathToIda_TextChanged);
+            txtPathToIda.Location = new Point(169, 61);
+            txtPathToIda.Name = "txtPathToIda";
+            txtPathToIda.Size = new Size(815, 31);
+            txtPathToIda.TabIndex = 5;
+            txtPathToIda.TextChanged += txtPathToIda_TextChanged;
             // 
             // btnStart
             // 
-            this.btnStart.Location = new System.Drawing.Point(503, 180);
-            this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(112, 34);
-            this.btnStart.TabIndex = 6;
-            this.btnStart.Text = "Start";
-            this.btnStart.UseVisualStyleBackColor = true;
-            this.btnStart.Click += new System.EventHandler(this.btnStart_Click);
-            // 
-            // button1
-            // 
-            this.button1.Location = new System.Drawing.Point(683, 121);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(335, 37);
-            this.button1.TabIndex = 7;
-            this.button1.Text = "Get python path";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            btnStart.Location = new Point(614, 164);
+            btnStart.Name = "btnStart";
+            btnStart.Size = new Size(112, 34);
+            btnStart.TabIndex = 6;
+            btnStart.Text = "Start";
+            btnStart.UseVisualStyleBackColor = true;
+            btnStart.Click += btnStart_Click;
             // 
             // chkBoxProcessIDB
             // 
-            this.chkBoxProcessIDB.AutoSize = true;
-            this.chkBoxProcessIDB.Location = new System.Drawing.Point(16, 176);
-            this.chkBoxProcessIDB.Name = "chkBoxProcessIDB";
-            this.chkBoxProcessIDB.Size = new System.Drawing.Size(317, 29);
-            this.chkBoxProcessIDB.TabIndex = 8;
-            this.chkBoxProcessIDB.Text = "Process .idb files with python script";
-            this.chkBoxProcessIDB.UseVisualStyleBackColor = true;
+            chkBoxProcessIDB.AutoSize = true;
+            chkBoxProcessIDB.Location = new Point(12, 169);
+            chkBoxProcessIDB.Name = "chkBoxProcessIDB";
+            chkBoxProcessIDB.Size = new Size(345, 29);
+            chkBoxProcessIDB.TabIndex = 8;
+            chkBoxProcessIDB.Text = "Process .i64 files in autonomous mode";
+            chkBoxProcessIDB.UseVisualStyleBackColor = true;
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(681, 180);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(337, 34);
-            this.button2.TabIndex = 9;
-            this.button2.Text = "Get binaries from current Windows";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
+            button2.Location = new Point(1005, 164);
+            button2.Name = "button2";
+            button2.Size = new Size(337, 34);
+            button2.TabIndex = 9;
+            button2.Text = "Get binaries from current Windows";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click;
+            // 
+            // txtScriptPath
+            // 
+            txtScriptPath.Location = new Point(168, 109);
+            txtScriptPath.Name = "txtScriptPath";
+            txtScriptPath.Size = new Size(816, 31);
+            txtScriptPath.TabIndex = 10;
+            // 
+            // lblPathToBinaries
+            // 
+            lblPathToBinaries.AutoSize = true;
+            lblPathToBinaries.Location = new Point(12, 21);
+            lblPathToBinaries.Name = "lblPathToBinaries";
+            lblPathToBinaries.Size = new Size(134, 25);
+            lblPathToBinaries.TabIndex = 11;
+            lblPathToBinaries.Text = "Path to binaries";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(12, 67);
+            label1.Name = "label1";
+            label1.Size = new Size(143, 25);
+            label1.TabIndex = 12;
+            label1.Text = "Path to IDA PRO";
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(12, 112);
+            label2.Name = "label2";
+            label2.Size = new Size(124, 25);
+            label2.TabIndex = 13;
+            label2.Text = "Path to scripts";
+            // 
+            // btnPathToScripts
+            // 
+            btnPathToScripts.Location = new Point(1007, 112);
+            btnPathToScripts.Name = "btnPathToScripts";
+            btnPathToScripts.Size = new Size(335, 30);
+            btnPathToScripts.TabIndex = 14;
+            btnPathToScripts.Text = "Select";
+            btnPathToScripts.UseVisualStyleBackColor = true;
+            btnPathToScripts.Click += btnPathToScripts_Click;
             // 
             // frmForm01
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 25F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1030, 570);
-            this.Controls.Add(this.button2);
-            this.Controls.Add(this.chkBoxProcessIDB);
-            this.Controls.Add(this.button1);
-            this.Controls.Add(this.btnStart);
-            this.Controls.Add(this.txtPathToIda);
-            this.Controls.Add(this.btnPathToIda);
-            this.Controls.Add(this.btnHvcallBins);
-            this.Controls.Add(this.richTextBox1);
-            this.Controls.Add(this.txtPathToHvcallBins);
-            this.Name = "frmForm01";
-            this.Text = "Extract.Hvcalls v1.0.20221109";
-            this.Load += new System.EventHandler(this.frmForm01_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new SizeF(10F, 25F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(1354, 709);
+            Controls.Add(btnPathToScripts);
+            Controls.Add(label2);
+            Controls.Add(label1);
+            Controls.Add(lblPathToBinaries);
+            Controls.Add(txtScriptPath);
+            Controls.Add(button2);
+            Controls.Add(chkBoxProcessIDB);
+            Controls.Add(btnStart);
+            Controls.Add(txtPathToIda);
+            Controls.Add(btnPathToIda);
+            Controls.Add(btnHvcallBins);
+            Controls.Add(richTextBox1);
+            Controls.Add(txtPathToHvcallBins);
+            Name = "frmForm01";
+            Text = "Extract.Hvcalls v1.0.20230720";
+            Load += frmForm01_Load;
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -153,8 +194,12 @@
         private TextBox txtPathToIda;
         private FolderBrowserDialog folderBrowserDialog1;
         private Button btnStart;
-        private Button button1;
         private CheckBox chkBoxProcessIDB;
         private Button button2;
+        private TextBox txtScriptPath;
+        private Label lblPathToBinaries;
+        private Label label1;
+        private Label label2;
+        private Button btnPathToScripts;
     }
 }

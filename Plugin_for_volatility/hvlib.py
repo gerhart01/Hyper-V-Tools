@@ -1,5 +1,7 @@
 #
-#  2022. hvlib.dll python wrapper developed by Arthur Khudyaev (@gerhart_x)
+#  hvlib.dll (Hyper-V memory manager library) python wrapper developed by Arthur Khudyaev (@gerhart_x)
+#  GPL3 License
+#  version 1.0.1
 #
 
 import ctypes
@@ -13,8 +15,9 @@ import binascii
 # problem with python 3 wprintf additional spaces between each letter
 msvcrt.setmode(sys.stdout.fileno(), os.O_TEXT)
 
-
+#
 # https://gist.github.com/christoph2/9c390e5c094796903097 - python 3 enums fix
+#
 
 class StructureWithEnums(ctypes.Structure):
     """Add missing enum feature to ctypes Structures.
@@ -76,16 +79,17 @@ class HvddInformationClass(IntEnum):
     HvddPartitionFriendlyName = 1
     HvddPartitionId = 2			
     HvddVmtypeString = 3
-    HvddMmMaximumPhysicalPage = 6	
+    HvddMmMaximumPhysicalPage = 6
+    HvddKernelBase = 11	
     HvddVmGuidString = 20
-
+    
 
 class VmStateAction(IntEnum):
     SuspendVm = 0
     ResumeVm = 1
 
 
-class TrParameter(StructureWithEnums):
+class CfgParameters(StructureWithEnums):
     _fields_ = [
         ("ReadMethod", ctypes.c_int),
         ("WriteMethod", ctypes.c_int),
@@ -133,12 +137,12 @@ class hvlib:
 
         # BOOLEAN SdkGetDefaultConfig(_Inout_ PVM_OPERATIONS_CONFIG VmOperationsConfig);
         self.hvlib.SdkGetDefaultConfig.restype = ctypes.c_bool
-        self.hvlib.SdkGetDefaultConfig.argtypes = [ctypes.POINTER(TrParameter)]
+        self.hvlib.SdkGetDefaultConfig.argtypes = [ctypes.POINTER(CfgParameters)]
 
         # PULONG64 SdkEnumPartitions(_Inout_ PULONG64 PartitionTableCount, _In_ PVM_OPERATIONS_CONFIG VmOpsConfig);
 
         self.hvlib.SdkEnumPartitions.restype = ctypes.POINTER(ctypes.c_uint64)
-        self.hvlib.SdkEnumPartitions.argtypes = [ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(TrParameter)]
+        self.hvlib.SdkEnumPartitions.argtypes = [ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(CfgParameters)]
 
         # BOOLEAN SdkGetData(_In_ ULONG64 PartitionIntHandle, _In_ HVDD_INFORMATION_CLASS HvddInformationClass, _Inout_ PVOID HvddInformation);
         self.hvlib.SdkGetData.restype = ctypes.c_bool
@@ -148,6 +152,7 @@ class hvlib:
         self.hvlib.SdkSelectPartition.restype = ctypes.c_bool
         self.hvlib.SdkSelectPartition.argtypes = [ctypes.c_uint64]
 
+        # BOOLEAN SdkCloseAllPartitions(_In_ ULONG64 PartitionHandle);
         self.hvlib.SdkCloseAllPartitions.restype = ctypes.c_bool
         self.hvlib.SdkCloseAllPartitions.argtypes = []
 
@@ -176,25 +181,30 @@ class hvlib:
         self.hvlib.SdkControlVmState.argtypes = [ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
 
         atexit.register(self.cleanup)
-        vm_ops = TrParameter(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        vm_ops = CfgParameters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         self.hvlib.SdkGetDefaultConfig(ctypes.pointer(vm_ops))
         self.vm_ops = vm_ops
 
     def PrintHex(self, buffer):
+
+        if type(buffer) == int:
+            print('0x'+'%08x' % buffer)
+            return
+
         hex = str(binascii.hexlify(buffer), 'ascii')
         formatted_hex = ':'.join(hex[i:i+2] for i in range(0, len(hex), 2))
         print(formatted_hex)
 
     def GetPreferredSettings(self):
 
-        VmOps = TrParameter(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        VmOps = CfgParameters(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         bResult = self.hvlib.SdkGetDefaultConfig(ctypes.pointer(VmOps))
         if not bResult:
             print("Error in SdkGetDefaultConfig")
             return False
         return VmOps
 
-    def EnumPartitions(self, vm_ops_param: TrParameter):
+    def EnumPartitions(self, vm_ops_param: CfgParameters):
 
         # vm_ops_param = GetPreferredSettings()
 
@@ -218,23 +228,23 @@ class hvlib:
                                            ctypes.pointer(PartitionId))
 
             print("[", x, "]", FriendlyNameP.value, "PartitionId = ", PartitionId.value)
-
-            print("Active partitions count: ", PartitionCount.value)
-
+    
+        print("Active partitions count: ", PartitionCount.value)
         self.PartitionArray = PartitionArray
         self.ArrayOfNames = ArrayOfNames
 
     def SelectPartition(self, vm_id):
 
         if vm_id >= self.PartitionCount:
-            print("Your value is very big")
+            print("Value of vm_id is more then count of partition")
 
         CurrentPartition = self.PartitionArray[vm_id]
-        print("You select", self.ArrayOfNames[vm_id])
+        print("You select ", self.ArrayOfNames[vm_id])
         self.hvlib.SdkSelectPartition(CurrentPartition)
         self.CurrentPartition = CurrentPartition
+        return CurrentPartition
 
-    def GetData(self, info_class: HvddInformationClass):
+    def GetData(self, vm_handle, info_class: HvddInformationClass):
 
         wchar_var = ctypes.c_wchar_p("N")
         int_var = ctypes.c_uint64(0)
@@ -242,18 +252,18 @@ class hvlib:
         if (info_class == HvddInformationClass.HvddPartitionFriendlyName) or (
                 info_class == HvddInformationClass.HvddVmtypeString) or (
                 info_class == HvddInformationClass.HvddVmGuidString):
-            self.hvlib.SdkGetData(self.CurrentPartition, info_class,
+            self.hvlib.SdkGetData(vm_handle, info_class,
                                            ctypes.pointer(wchar_var))
             return wchar_var.value
         else:
-            self.hvlib.SdkGetData(self.CurrentPartition, info_class,
+            self.hvlib.SdkGetData(vm_handle, info_class,
                                            ctypes.pointer(int_var))
             return int_var.value
 
-    def ReadPhysicalMemoryBlock(self, address, block_size):
+    def ReadPhysicalMemoryBlock(self, vm_handle, address, block_size):
 
         buffer = ctypes.create_string_buffer(block_size)
-        bResult = self.hvlib.SdkReadPhysicalMemory(self.CurrentPartition, address, block_size, buffer,
+        bResult = self.hvlib.SdkReadPhysicalMemory(vm_handle, address, block_size, buffer,
                                                                   self.vm_ops.ReadMethod)
         if not bResult:
             print("ReadPhysicalMemoryBlock error")
@@ -262,20 +272,20 @@ class hvlib:
         # self.PrintHex(buffer)
         return buffer
 
-    def ReadVirtualMemoryBlock(self, address, block_size):
+    def ReadVirtualMemoryBlock(self, vm_handle, address, block_size):
 
         buffer = ctypes.create_string_buffer(block_size)
-        bResult = self.hvlib.SdkReadVirtualMemory(self.CurrentPartition, address, buffer, block_size)
+        bResult = self.hvlib.SdkReadVirtualMemory(vm_handle, address, buffer, block_size)
         if not bResult:
             print("ReadVirtualMemoryBlock error")
             return 0
 
         return buffer
 
-    def WritePhysicalMemoryBlock(self, address, buffer):
+    def WritePhysicalMemoryBlock(self, vm_handle, address, buffer):
 
         block_size = len(buffer)
-        bResult = self.hvlib.SdkWritePhysicalMemory(self.CurrentPartition, address, block_size, buffer,
+        bResult = self.hvlib.SdkWritePhysicalMemory(vm_handle, address, block_size, buffer,
                                                                   self.vm_ops.WriteMethod)
         if not bResult:
             print("WritePhysicalMemoryBlock error")
@@ -283,10 +293,10 @@ class hvlib:
 
         return True
 
-    def WriteVirtualMemoryBlock(self, address, buffer):
+    def WriteVirtualMemoryBlock(self, vm_handle, address, buffer):
 
         block_size = len(buffer)
-        bResult = self.hvlib.SdkWriteVirtualMemory(self.CurrentPartition, address, buffer, block_size)
+        bResult = self.hvlib.SdkWriteVirtualMemory(vm_handle, address, buffer, block_size)
         if not bResult:
             print("ReadVirtualMemoryBlock error")
             return False

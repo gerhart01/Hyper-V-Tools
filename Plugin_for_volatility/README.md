@@ -1,13 +1,13 @@
 #
-# Hyper-V Memory Manager plugin for volatility (https://github.com/volatilityfoundation)
+# Hyper-V Memory Manager plugin for volatility3
 #
 
 Installation instructions:
 
 1. Download volatility3 from [Github](https://github.com/volatilityfoundation/volatility3)   
-2. Download [Hyper-V Memory Manager plugin for volatility](https://github.com/gerhart01/Hyper-V-Tools/releases/download/1.0.20221109/Hyper-V.Memory.Manager.plugin.for.volatility.v1.0.20221109.zip) (check latest release):
+2. Download [Hyper-V Memory Manager plugin for volatility](https://github.com/gerhart01/Hyper-V-Tools/releases/download/1.0.20240427/Hyper-V.Memory.Manager.plugin.for.volatility.v1.0.20240427.zip) (check latest release):
 
-and get files for volatility integration:  
+and extract files for integration with volatility:  
 
 ```
 hyperv.py 
@@ -48,7 +48,7 @@ from volatility3.framework.layers import physical
 from volatility3.framework.layers import hyperv
 ```
 
-5.2. Find string
+5.2. Find code block
 
 ```python
         physical_layer = physical.FileLayer(
@@ -79,7 +79,7 @@ replace it with next code:
    )
  ```
 
-6. Copy 
+1. Copy 
 ```
 hvlib.py
 hvlib.dll 
@@ -88,15 +88,15 @@ hvmm.sys
 to <python_dir>\Lib\site-packages (f.e. C:\Python312x64\Lib\site-packages).
 	If you use some python virtual environment plugins, you need to copy files inside it.  
 	For example to venv\Lib\site-packages for virtualenv.  
-7. Create file C:\windows\hvmm.dmp. It can be empty (volatility have to read real file)  
-8. Execute  
+1. Create file C:\windows\hvmm.dmp. It can be empty (volatility have to read real file)  
+2. Execute  
 
 ```
 python.exe vol.py -vv -f "C:\windows\hvmm.dmp" windows.pslist
 ```
 
 Often volatility is working bad with fresh Windows versions or old Windows versions with fresh updates. 
-Take Windows 10 dump using LiveCloudKd and check it in volatility, if you see error messages when scanning Hyper-V VM. 
+Take Windows 10 dump using LiveCloudKd and check it in volatility, if you see error messages, when scanning Hyper-V VM. 
 Also you can check Windows 7 dump for correct volatility working purpose, according project pages: https://github.com/volatilityfoundation/volatility/wiki/Memory-Samples ...
  
 ![](./images/image001.png)

@@ -13,6 +13,7 @@ from volatility3.framework.configuration import requirements
 from volatility3.framework.layers import resources
 
 g_lkd_handle = 0
+g_vm_handle = 0
 
 vollog = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         super().__init__(context = context, config_path = config_path, name = name, metadata = metadata)
 
         global g_lkd_handle
+        global g_vm_handle
 
         if g_lkd_handle == 0:
 
@@ -104,18 +106,22 @@ class FileLayer(interfaces.layers.DataLayerInterface):
             vm_id = int(input('').split(" ")[0])
             # vm_id = 0
 
-            lkd_handle.SelectPartition(vm_id)
+            vm_handle = lkd_handle.SelectPartition(vm_id)
+            g_vm_handle = vm_handle
             self._lkd_handle = lkd_handle
+            self._vm_handle = vm_handle
         else:
             self._lkd_handle = g_lkd_handle
+            self._vm_handle = g_vm_handle
             lkd_handle = g_lkd_handle
+            vm_handle = g_vm_handle
 
         self._write_warning = False
         self._location = self.config["location"]
         self._accessor = resources.ResourceAccessor()
         self._file_: Optional[IO[Any]] = None
         self._size: Optional[int] = None
-        self._maximum_address: Optional[int] = lkd_handle.GetData(HvddInformationClass.HvddMmMaximumPhysicalPage) * 0x1000
+        self._maximum_address: Optional[int] = lkd_handle.GetData(vm_handle, HvddInformationClass.HvddMmMaximumPhysicalPage) * 0x1000
         # Construct the lock now (shared if made before threading) in case we ever need it
         self._lock: Union[DummyLock, threading.Lock] = DummyLock()
         if constants.PARALLELISM == constants.Parallelism.Threading:
@@ -160,8 +166,8 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         if length <= 0:
             raise ValueError("Length must be positive")
 
-        return bool(self.minimum_address <= offset <= (self.maximum_address+0x2000) # 0x2000 size of DUMP_HEADER64
-                    and self.minimum_address <= offset + length - 1 <= self.maximum_address+0x2000)
+        return bool(self.minimum_address <= offset <= (self.maximum_address + 0x2000) # 0x2000 size of DUMP_HEADER64
+                    and self.minimum_address <= offset + length - 1 <= self.maximum_address + 0x2000)
 
     def read(self, offset: int, length: int, pad: bool = False) -> bytes:
         """Reads from the file at offset for length."""
@@ -176,7 +182,7 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         with self._lock:
             # self._file.seek(offset)
             # data = self._file.read(length)
-            data = self._lkd_handle.ReadPhysicalMemoryBlock(offset, length)
+            data = self._lkd_handle.ReadPhysicalMemoryBlock(self._vm_handle, offset, length)
 
         if len(data) < length:
             if pad:
@@ -205,7 +211,7 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         with self._lock:
             # self._file.seek(offset)
             # self._file.write(data)
-            self._lkd_handle.WritePhysicalMemoryBlock(offset, data)
+            self._lkd_handle.WritePhysicalMemoryBlock(self._vm_handle, offset, data)
 
     def __getstate__(self) -> Dict[str, Any]:
         """Do not store the open _file_ attribute, our property will ensure the
@@ -222,6 +228,7 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         global g_lkd_handle
         self._lkd_handle.cleanup()
         g_lkd_handle = 0
+        g_vm_handle = 0
 
     def __exit__(self, type, value, traceback) -> None:
         self.destroy()

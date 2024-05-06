@@ -5,7 +5,7 @@
 Installation instructions:
 
 1. Download volatility3 from [Github](https://github.com/volatilityfoundation/volatility3)   
-2. Download [Hyper-V Memory Manager plugin for volatility](https://github.com/gerhart01/Hyper-V-Tools/releases/download/1.0.20240427/Hyper-V.Memory.Manager.plugin.for.volatility.v1.0.20240427.zip) (check latest release):
+2. Download [Hyper-V Memory Manager plugin for volatility](https://github.com/gerhart01/Hyper-V-Tools/releases/download/v1.0.20240427/Hyper-V.Memory.Manager.plugin.for.volatility.v1.0.20240427.zip) (check latest release):
 
 and extract files for integration with volatility:  
 

@@ -180,7 +180,7 @@
             Controls.Add(richTextBox1);
             Controls.Add(txtPathToHvcallBins);
             Name = "frmForm01";
-            Text = "Extract.Hvcalls v1.0.20230720";
+            Text = "Extract.Hvcalls GUI v1.0.20240505";
             Load += frmForm01_Load;
             ResumeLayout(false);
             PerformLayout();

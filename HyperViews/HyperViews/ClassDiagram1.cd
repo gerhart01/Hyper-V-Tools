@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="PTViewClient.HexDumpView" Collapsed="true">
+    <Position X="6.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACAIAAAAAACAAAACAAAAAJAAAAAAAAAABAA=</HashCode>
+      <FileName>HexDumpView.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.MainForm" Collapsed="true">
+    <Position X="3" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>JgIFwQAEAGAAADAIAAyAS4KqA0sBkAQaByAMAkKBggA=</HashCode>
+      <FileName>MainForm.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.Program" Collapsed="true">
+    <Position X="8.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAA=</HashCode>
+      <FileName>Program.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.Properties.Resources" Collapsed="true">
+    <Position X="3" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAABEAAAAQAAAAAAAAAAAAAAAIA=</HashCode>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.Properties.Settings" Collapsed="true">
+    <Position X="4.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAIAAAAAABAAAAAAAAAAAAAAA=</HashCode>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.Driver.DriverInterface" Collapsed="true">
+    <Position X="4.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAAEAAAAgQAAAAAAAAAAAAAAAAAAAAAAAACAAAA=</HashCode>
+      <FileName>PTView\Driver\DriverInterface.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Hvlibdotnet.VmListBox" Collapsed="true">
+    <Position X="8.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAIAAAAAAAAAAAAAAACAAAAAAAAAAAAAA=</HashCode>
+      <FileName>PTView\Driver\HvlibDotNet.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Hvlibdotnet.Hvlib" Collapsed="true">
+    <Position X="8.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAACACACAAAAAgIAACAgBAAAABAAMAAAAAAA=</HashCode>
+      <FileName>PTView\Driver\HvlibDotNet.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.Driver.Internal.Constants" Collapsed="true">
+    <Position X="3" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAEAYAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI=</HashCode>
+      <FileName>PTView\Driver\Internal\Constants.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.Misc" Collapsed="true">
+    <Position X="4.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAABAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>PTView\Misc.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.Native" Collapsed="true">
+    <Position X="6.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAgAAAAAAAAAAAQAACAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>PTView\Native.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.PML4E" Collapsed="true">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BAAAAAAAAAAQABACAAAAABBQAAAAAgAAAAAgEAAAAAA=</HashCode>
+      <FileName>PTView\Structures.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.PDPTE" Collapsed="true">
+    <Position X="0.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>PTView\Structures.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.PDE" Collapsed="true">
+    <Position X="0.5" Y="3.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>PTView\Structures.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.PTE" Collapsed="true">
+    <Position X="0.5" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAABAAAAEACAAAAAAAAAAAAAAAAABIAA=</HashCode>
+      <FileName>PTView\Structures.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PTViewClient.PTView.VirtualAddress" Collapsed="true">
+    <Position X="6.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAAAAAgAEAACAAAAAAAAAAAAABAEAAAgAAAAgAA=</HashCode>
+      <FileName>PTView\Structures.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

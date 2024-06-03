@@ -437,7 +437,7 @@ namespace PTViewClient
             if (sl1 != null)
             {
                 Hvlib.VmHandle = sl1.VmHandle;
-                Hvlib.DumpCrashVirtualMachine();
+                Hvlib.DumpVirtualMachine();
             }
         }
     }

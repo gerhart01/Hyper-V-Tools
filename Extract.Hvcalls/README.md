@@ -1,4 +1,4 @@
-Extract.Hvcall utility for automatically extraction of Hyper-V hypercalls names and codes from Hyper-V core binaries:
+Extract.Hvcall (Hvcall GUI - GUI interface for extract_hvcalls.py IDA PRO script) utility for automatically extraction of Hyper-V hypercalls names and code numbers from Hyper-V core binaries:
 
 	securekernel.exe
 	winhvr.sys

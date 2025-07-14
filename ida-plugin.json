@@ -3,7 +3,7 @@
   "plugin": {
     "name": "Hvcalls GUI",
     "entryPoint": "function_analyzer_plus.py",
-    "categories": ["decompilation", "hypervisor-hypercall-extraction","file-parsers-and-loaders","api-scripting-and-automation"],
+    "categories": ["decompilation", "file-parsers-and-loaders","api-scripting-and-automation"],
     "logoPath": "images/image001.png",
     "idaVersions": ">=7.5",
     "description": "Hvcalls GUI is utility for automatically Microsoft Hyper-V hypercalls names and code numbers extraction from Hyper-V core binaries",

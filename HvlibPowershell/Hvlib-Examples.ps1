@@ -2124,7 +2124,6 @@ function Invoke-AllExamples {
     # Section 6: Process Information
     Example-GetHvlibProcessesList -Handle $testHandle
     Example-GetHvlibCr3-Kernel -Handle $testHandle
-    Example-GetHvlibCr3-Hypervisor -Handle $testHandle
     
     # Section 8: Utilities
     Example-GetHexValue

@@ -142,7 +142,7 @@
             LicenseUri = ''
             
             # A URL to the main website for this project
-            ProjectUri = 'https://github.com/gerhart01/Hyper-V-Tools'
+            ProjectUri = 'https://github.com/gerhart01/Hyper-V-Tools/HvlibPowershell'
             
             # A URL to an icon representing this module
             IconUri = ''

@@ -24,4 +24,8 @@ Import-Module -FullyQualifiedName @{ModuleName = 'Hvlib'; ModuleVersion = '1.3.0
 See examples cmdlets usages in Hvlib-Examples.ps.  
 See cmdlets usages description [Link](Hvlib_Functions_Reference.md)  
 See additional recommendation for AI code generation [Link](AI_DOCUMENTATION_GUIDE.md)  
+
+I set to 1.3.0 version "beta" status, because of many new functions.
+The good variant to share powershell module with LiveCloudKd distributive, because of similar functions in hvlib.dll and Hvlib Powershell module. I will upload it later, after more count of testing.
+If you need some fixes to beta variant - you can open issue.
  

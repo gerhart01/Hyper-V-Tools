@@ -13,57 +13,92 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Function Categories](#function-categories)
-  - [Library Management](#library-management)
+- [Hvlib PowerShell Module - Function Reference (beta version)](#hvlib-powershell-module---function-reference-beta-version)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Installation](#installation)
+    - [Prerequisites](#prerequisites)
+    - [Import Module](#import-module)
+  - [Quick Start](#quick-start)
+  - [Function Categories](#function-categories)
+    - [Library Management](#library-management)
     - [1. Get-Hvlib](#1-get-hvlib)
     - [2. Get-HvlibPreferredSettings](#2-get-hvlibpreferredsettings)
-  - [Partition Enumeration and Selection](#partition-enumeration-and-selection)
+    - [Partition Enumeration and Selection](#partition-enumeration-and-selection)
     - [3. Get-HvlibAllPartitions](#3-get-hvliballpartitions)
     - [4. Get-HvlibPartition](#4-get-hvlibpartition)
     - [5. Select-HvlibPartition](#5-select-hvlibpartition)
-  - [Partition Information](#partition-information)
+    - [Partition Information](#partition-information)
     - [6. Get-HvlibPartitionName](#6-get-hvlibpartitionname)
     - [7. Get-HvlibPartitionGuid](#7-get-hvlibpartitionguid)
     - [8. Get-HvlibPartitionId](#8-get-hvlibpartitionid)
     - [9. Get-HvlibData](#9-get-hvlibdata)
     - [10. Get-HvlibData2](#10-get-hvlibdata2)
-  - [Physical Memory Operations](#physical-memory-operations)
+    - [Physical Memory Operations](#physical-memory-operations)
     - [11. Get-HvlibVmPhysicalMemory](#11-get-hvlibvmphysicalmemory)
     - [12. Set-HvlibVmPhysicalMemory](#12-set-hvlibvmphysicalmemory)
     - [13. Set-HvlibVmPhysicalMemoryBytes](#13-set-hvlibvmphysicalmemorybytes)
-  - [Virtual Memory Operations](#virtual-memory-operations)
+    - [Virtual Memory Operations](#virtual-memory-operations)
     - [14. Get-HvlibVmVirtualMemory](#14-get-hvlibvmvirtualmemory)
     - [15. Set-HvlibVmVirtualMemory](#15-set-hvlibvmvirtualmemory)
     - [16. Set-HvlibVmVirtualMemoryBytes](#16-set-hvlibvmvirtualmemorybytes)
-  - [Process and System Information](#process-and-system-information)
+    - [Process and System Information](#process-and-system-information)
     - [17. Get-HvlibProcessesList](#17-get-hvlibprocesseslist)
     - [18. Get-HvlibCr3](#18-get-hvlibcr3)
-  - [VM State Control](#vm-state-control)
+    - [VM State Control](#vm-state-control)
     - [19. Suspend-HvlibVm](#19-suspend-hvlibvm)
     - [20. Resume-HvlibVm](#20-resume-hvlibvm)
-  - [Advanced Memory Operations](#advanced-memory-operations)
+    - [Advanced Memory Operations](#advanced-memory-operations)
     - [21. Get-HvlibPhysicalAddress](#21-get-hvlibphysicaladdress)
     - [22. Set-HvlibPartitionData](#22-set-hvlibpartitiondata)
-  - [VM Introspection](#vm-introspection)
+    - [VM Introspection](#vm-introspection)
     - [23. Get-HvlibMachineType](#23-get-hvlibmachinetype)
     - [24. Get-HvlibCurrentVtl](#24-get-hvlibcurrentvtl)
-  - [CPU Register Access](#cpu-register-access)
+    - [CPU Register Access](#cpu-register-access)
     - [25. Get-HvlibVpRegister](#25-get-hvlibvpregister)
     - [26. Set-HvlibVpRegister](#26-set-hvlibvpregister)
-  - [Resource Management](#resource-management)
+    - [Resource Management](#resource-management)
     - [27. Close-HvlibPartitions](#27-close-hvlibpartitions)
     - [28. Close-HvlibPartition](#28-close-hvlibpartition)
-  - [Utilities](#utilities)
+    - [Utilities](#utilities)
     - [29. Get-HexValue](#29-get-hexvalue)
-- [Special Constants and Values](#special-constants-and-values)
-- [Examples](#examples)
-- [Workflow Scenarios](#workflow-scenarios)
-- [Best Practices and Tips](#best-practices-and-tips)
-- [Troubleshooting](#troubleshooting)
-- [Version History](#version-history)
+  - [Special Constants and Values](#special-constants-and-values)
+    - [Special Process IDs](#special-process-ids)
+    - [Memory Constants](#memory-constants)
+    - [Working with Large Addresses in PowerShell](#working-with-large-addresses-in-powershell)
+    - [Information Classes](#information-classes)
+  - [Examples](#examples)
+    - [Example 1: Basic VM Memory Dump](#example-1-basic-vm-memory-dump)
+    - [Example 2: Process Enumeration and Analysis](#example-2-process-enumeration-and-analysis)
+    - [Example 3: Kernel Memory Patching](#example-3-kernel-memory-patching)
+    - [Example 4: CPU Register Debugging](#example-4-cpu-register-debugging)
+    - [Example 5: Address Translation and Memory Mapping](#example-5-address-translation-and-memory-mapping)
+    - [Example 6: Batch Processing Multiple VMs](#example-6-batch-processing-multiple-vms)
+    - [Example 7: Complete Debug Session (NEW v1.3.0)](#example-7-complete-debug-session-new-v130)
+  - [Workflow Scenarios](#workflow-scenarios)
+    - [Workflow 1: Multi-VM Analysis Report](#workflow-1-multi-vm-analysis-report)
+    - [Workflow 2: VM Information Report](#workflow-2-vm-information-report)
+    - [Workflow 3: Memory Analysis](#workflow-3-memory-analysis)
+    - [Workflow 4: Process Introspection](#workflow-4-process-introspection)
+    - [Workflow 5: Safe Memory Dump](#workflow-5-safe-memory-dump)
+    - [Workflow 6: CPU Context Snapshot](#workflow-6-cpu-context-snapshot)
+    - [Workflow 7: Virtualization-Based Security (VBS) Detection](#workflow-7-virtualization-based-security-vbs-detection)
+  - [Best Practices and Tips](#best-practices-and-tips)
+    - [Safe VM Operations](#safe-vm-operations)
+    - [Performance Optimization](#performance-optimization)
+    - [Common Pitfalls](#common-pitfalls)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
+  - [Version History](#version-history)
+    - [Version 1.3.0 (Current)](#version-130-current)
+    - [Version 1.2.0 (Major Feature Release)](#version-120-major-feature-release)
+    - [Version 1.1.1 (Bug Fix Release)](#version-111-bug-fix-release)
+    - [Version 1.1.0 (Refactored Release)](#version-110-refactored-release)
+    - [Version 1.0.1](#version-101)
+    - [Version 1.0.0 (Initial Release)](#version-100-initial-release)
+  - [Additional Resources](#additional-resources)
+  - [License](#license)
+  - [Contributing](#contributing)
 
 ---
 
@@ -1776,7 +1811,7 @@ if ($data -and $data.Length -ge 8) {
 ---
 
 ### Version 1.2.0 (Major Feature Release)
-**Release Date:** December 2024
+**Release Date:** December 2025
 
 **New Functions (7):**
 - `Set-HvlibPartitionData` - Set partition configuration data
@@ -1793,7 +1828,7 @@ if ($data -and $data.Length -ge 8) {
 ---
 
 ### Version 1.1.1 (Bug Fix Release)
-**Release Date:** November 2024
+**Release Date:** November 2025
 
 **Fixes:**
 - Removed hard-coded `DEFAULT_DLL_PATH` constant
@@ -1838,7 +1873,7 @@ if ($data -and $data.Length -ge 8) {
 ---
 
 ### Version 1.0.0 (Initial Release)
-**Release Date:** August 2025
+**Release Date:** August 2024
 
 **Features:**
 - Basic VM enumeration and selection
@@ -1850,7 +1885,7 @@ if ($data -and $data.Length -ge 8) {
 
 ## Additional Resources
 
-- **GitHub Repository:** [gerhart01/Hyper-V-Tools](https://github.com/gerhart01/Hyper-V-Tools)
+- **GitHub Repository:** [gerhart01/Hyper-V-Tools](https://github.com/gerhart01/Hyper-V-Tools/tree/main/HvlibPowershell)
 - **Native Library:** hvlib.dll - Hyper-V Memory Manager Plugin
 - **C# Wrapper:** hvlibdotnet.dll
 - **PowerShell Version:** 7.0+

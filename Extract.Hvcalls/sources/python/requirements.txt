@@ -1,2 +1,3 @@
 sark
 pefile
+pyqt5

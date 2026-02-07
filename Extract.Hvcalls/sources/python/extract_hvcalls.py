@@ -1,509 +1,539 @@
-__author__ = "Gerhart"
-__license__ = "GPL3"
-__version__ = "1.0.3"
+#!/usr/bin/env python3
+"""
+IDA Python 3.12+ Hyper-V Hypercall Extractor
 
-#
-#  Script is used for modules 
-#       winhvr.sys
-#       winhv.sys
-#       securekernel.exe
-#       securekernel57.exe
-#       ntoskrnl.exe 
-#       ntoskrnl57.exe
-#  many functions inside export of winhvr.sys doesn't use hypercalls
-#
+Extracts hypercall information from Hyper-V related modules using Python.
+Supports: winhvr.sys, winhv.sys, securekernel.exe, ntoskrnl.exe
 
-import os
-import sys
+Author: Gerhart (@gerhart_x)
+License: GPL3
+Version: 3.0.0
+"""
+
 import json
-import pathlib
+import os
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Union, Any, NamedTuple
+
 import idc
 import idautils
 import ida_xref
-
-#
-# ntoskrnl, build 10.0.20298.1
-#
-
-g_hardcoded_hvcalls_10_0_20298_1 = {
-    0x2:  "HvlpSlowFlushListTb",                                            # v9 = 2i64; #  LODWORD(v19) = 3;
-    0x3:  "HvlpSlowFlushListTb",                                            # v9 = 2i64;  #  LODWORD(v19) = 3;
-    0x13: "HvlpSlowFlushAddressSpaceTbEx",                                  # HvcallInitiateHypercall(((v10 + 7) << 14) & 0x3FE0000 | 0x13u
-    0x14: "HvlpSlowFlushListTbEx",                                          # LODWORD(v20) = ((v11 + 7) << 14) & 0x3FE0000 | 0x14;
-    0x15: "HvlpSlowSendSyntheticClusterIpiEx",                              # v8 = HvcallInitiateHypercall(((v5 + 7) << 14) & 0x3FE0000 | 0x15i64,
-    0x48: "HvlMapGpaPages",                                                 # LODWORD(a6) = 75;
-    0x4E: 'HvlpCreateRootVirtualProcessor',
-    0x6E: "HvlMapSparseGpaPages",
-    0x7C: "HvlMapDeviceInterrupt",                                          # HvcallInitiateHypercall(((v10 + 7) << 14) & 0x3FE0000 | 0x7Ci64
-    0x7F: "HvlRetargetDeviceInterrupt",                                     # v18 = 127i64;
-    0x82: "HvlRegisterDeviceId",                                            # HvcallInitiateHypercall((v6 << 14) & 0x3FE0000 | 0x82i64
-    0x88: 'HvlLpReadMultipleMsr',                                           # LODWORD(v17) = 136;
-    0x89: "HvlLpWriteMultipleMsr",                                          # LODWORD(v16) = 137;
-    0xA1: "HvlpSlowFlushPasidAddressList",                                  # LODWORD(v14) = 161; HvcallInitiateHypercall(v14, v17, 0i64, v9);
-    0xA6: 'HvlpSlowAcknowledgePageRequest',
-    0xB3: "HvlDmaMapDeviceLogicalRange",                                    # v17 = 0xB3;
-    0xBC: "HvlpAddRemovePhysicalMemory",                                    # v10 = 0x100BC;v19 = v10;
-    0xC7: "HvlDmaMapDeviceSparsePages",                                     # v12 = 199;
-    0xC8: "HvlDmaUnmapDeviceSparsePages",                                   # v12 = 200;
-    0xCA: 'HvlGetSparseGpaPagesAccessState',                                # LODWORD(v27) = 202;
-    0xDB: "HvlChangeIsolatedMemoryVisibility"                               # LODWORD(v20) = 219;
-}
-
-#
-# ntoskrnl, build 10.0.20344.1
-#
-
-g_hardcoded_hvcalls_10_0_20344_1 = {
-    0x7:     "HvlpDynamicUpdateMicrocode",                                  # HvcallFastExtended(v12, (unsigned int)&v13, HvcallInitInputControl(7i64
-    0x10013: "HvlpFastFlushAddressSpaceTbEx",                               # HvcallFastExtended(((v4 + 7) << 14) & 0x3FE0000 | 0x10013u,
-    0x10014: "HvlpFastFlushListTbEx",                                       # v13 = ((v10 + 7) << 14) & 0x3FE0000 | 0x14; HvcallFastExtended(v13 | 0x10000,
-    0x8003:  "HvlNotifyPageHeat"                                            # v11 = 0x8003i64;
-}
-
-#
-# ntoskrnl, build 10.0.19041.1052
-#
-
-g_hardcoded_hvcalls_10_0_19041_1052 = {
-    0x7: "HvlpCondenseMicrocode",                                           # HvcallInitInputControl(7i64, &v2);
-    0x48: "HvlpDepositPages"                                                # LODWORD(v26) = 0x48; HvcallInitiateHypercall(v26,
-}
-
-g_hardcoded_hvcalls = [
-    g_hardcoded_hvcalls_10_0_19041_1052,
-    g_hardcoded_hvcalls_10_0_20298_1,
-    g_hardcoded_hvcalls_10_0_20344_1
-]
-
-g_script_args = len(idc.ARGV)
-print("g_script_args", g_script_args)
-
-if g_script_args > 0:
-    ida_auto.auto_wait()
-
-g_current_dir = str(pathlib.Path(__file__).parent.resolve())
-
-#
-#   directories for searching and saving
-#
-
-g_hvcall_dir_saving = g_current_dir + "\\hvcalls_json_files\\"
-g_hvcall_unknown_dir_saving = g_hvcall_dir_saving + "unknown\\"
-
-print("g_current_dir: ", g_current_dir)
-
-#
-# import Idahunt module
-#
-
-sys.path.append(g_current_dir + "\\idahunt\\")
-import ida_helper
-
-g_idb_name = ida_helper.get_idb_name()
-
-g_hvcall_dict = {}
-g_hvcall_dict_unknown = {}
-g_hvcall_dict_unknown_index = 0
-g_duplicate_prefix = 0xFFFF00000000
-
-# hvcall_file_path = g_current_dir + "\\hvcalls_dict.json"
-
-if not os.path.exists(g_hvcall_dir_saving):
-    os.makedirs(g_hvcall_dir_saving)
-
-if not os.path.exists(g_hvcall_unknown_dir_saving):
-    os.makedirs(g_hvcall_unknown_dir_saving)
+import ida_auto
+import ida_nalt
+import ida_hexrays
+import ida_funcs
+import ida_name
 
 
-def save_dict_to_file(file_path, t_dict):
-    file = open(file_path, "w")
-    print("Saving file to ", file_path)
-    json.dump(t_dict, file, indent=4)  # sort_keys=True
-    file.close()
+@dataclass(frozen=True)
+class Config:
+    """Immutable configuration for hypercall extraction"""
+    output_dir: Path = field(default_factory=lambda: Path(__file__).parent / "hvcalls_json_files")
+    unknown_dir: Path = field(default_factory=lambda: Path(__file__).parent / "hvcalls_json_files" / "unknown")
+    duplicate_prefix: int = 0xFFFF00000000
+
+    def __post_init__(self):
+        """Validate configuration after initialization"""
+        if self.duplicate_prefix <= 0:
+            raise ValueError("duplicate_prefix must be positive")
 
 
-def load_dict_from_file(file_path):
-    file = open(file_path, "r")
-    hv_dict = file.read()
-    print(file)
-    return hv_dict
-
-def get_function_name_by_address(fn_address):
-    hvcall_name = idc.get_func_name(fn_address)
-
-    if hvcall_name == '':
-        print("Function name is empty. Address:", fn_address)
-        return ''
-
-    return hvcall_name
+class HypercallEntry(NamedTuple):
+    """Immutable hypercall entry"""
+    id: Union[int, str]
+    name: str
+    decompiled_code: str = ""
 
 
-def get_function_with_params(hv_decompile, hvcall_aux_fn_name):
+@dataclass
+class HardcodedHypercalls:
+    """Container for hardcoded hypercall definitions with validation"""
+    
+    KNOWN_VERSIONS: Dict[str, Dict[int, str]] = field(default_factory=lambda: {
+        "10.0.19041.1052": {
+            0x7: "HvlpCondenseMicrocode",
+            0x48: "HvlpDepositPages"
+        },
+        "10.0.20298.1": {
+            0x2: "HvlpSlowFlushListTb", 0x3: "HvlpSlowFlushListTb",
+            0x13: "HvlpSlowFlushAddressSpaceTbEx", 0x14: "HvlpSlowFlushListTbEx",
+            0x15: "HvlpSlowSendSyntheticClusterIpiEx", 0x48: "HvlMapGpaPages",
+            0x4E: "HvlpCreateRootVirtualProcessor", 0x6E: "HvlMapSparseGpaPages",
+            0x7C: "HvlMapDeviceInterrupt", 0x7F: "HvlRetargetDeviceInterrupt",
+            0x82: "HvlRegisterDeviceId", 0x88: "HvlLpReadMultipleMsr",
+            0x89: "HvlLpWriteMultipleMsr", 0xA1: "HvlpSlowFlushPasidAddressList",
+            0xA6: "HvlpSlowAcknowledgePageRequest", 0xB3: "HvlDmaMapDeviceLogicalRange",
+            0xBC: "HvlpAddRemovePhysicalMemory", 0xC7: "HvlDmaMapDeviceSparsePages",
+            0xC8: "HvlDmaUnmapDeviceSparsePages", 0xCA: "HvlGetSparseGpaPagesAccessState",
+            0xDB: "HvlChangeIsolatedMemoryVisibility"
+        },
+        "10.0.20344.1": {
+            0x7: "HvlpDynamicUpdateMicrocode", 0x10013: "HvlpFastFlushAddressSpaceTbEx",
+            0x10014: "HvlpFastFlushListTbEx", 0x8003: "HvlNotifyPageHeat"
+        }
+    })
+    
+    def find_by_name(self, name: str) -> Optional[int]:
+        """Find hypercall ID by function name across all versions"""
+        if not name or not isinstance(name, str):
+            return None
+            
+        for version_map in self.KNOWN_VERSIONS.values():
+            for hv_id, hv_name in version_map.items():
+                if hv_name == name:
+                    return hv_id
+        return None
 
-    #
-    # first, find end of function params. It is ")" or ");"
-    #
 
-    hvcall_start = hv_decompile.find(hvcall_aux_fn_name) + len(hvcall_aux_fn_name) + 1
-    #hvcall_end = hv_decompile.find(");", hvcall_start) + 2  
-    hvcall_end = hv_decompile.find(");", hvcall_start) + 1  # -1 will be returned in error, but ")" can be returned at the end of parameter. Return to +1 instead of +2
+class FileOperations:
+    """Handles file operations with proper validation"""
+    
+    @staticmethod
+    def ensure_directories(*paths: Path) -> None:
+        """Create directories if they don't exist with validation"""
+        for path in paths:
+            if not isinstance(path, Path):
+                raise TypeError(f"Expected Path, got {type(path)}")
+            path.mkdir(parents=True, exist_ok=True)
 
-    print("hvcall_start:", hvcall_start)
-    print("hvcall_end:", hvcall_end)
+    @staticmethod
+    def save_json(filepath: Path, data: Dict[str, Any]) -> bool:
+        """Save dictionary to JSON file with validation"""
+        if not isinstance(filepath, Path) or not data:
+            return False
+            
+        if not filepath.parent.exists():
+            FileOperations.ensure_directories(filepath.parent)
+            
+        try:
+            filepath.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+            print(f"Saved: {filepath}")
+            return True
+        except (OSError, ValueError) as e:
+            print(f"Failed to save {filepath}: {e}")
+            return False
 
-    if hvcall_end == 1:  # -1 + 2 = 1
-        print("hv_decompile", hv_decompile)
-        hvcall_end = hv_decompile.find(")", hvcall_start) + 1
-        print("hvcall_end without );", hvcall_end)
+    @staticmethod
+    def load_json(filepath: Path) -> Optional[Dict[str, Any]]:
+        """Load dictionary from JSON file with validation"""
+        if not isinstance(filepath, Path) or not filepath.exists():
+            return None
+            
+        try:
+            return json.loads(filepath.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"Failed to load {filepath}: {e}")
+            return None
 
-    param_string = hv_decompile[hvcall_start:hvcall_end]
+    @staticmethod
+    def get_idb_name() -> str:
+        """Get IDB filename with fallback"""
+        try:
+            import ida_helper
+            name = ida_helper.get_idb_name()
+            return name if name else Path(ida_nalt.get_input_file_path()).name
+        except ImportError:
+            return Path(ida_nalt.get_input_file_path()).name
 
-    # print(param_string, "hvcall_name:", hvcall_name)
+    @staticmethod
+    def get_file_version() -> str:
+        """Get PE file version with validation"""
+        try:
+            from pefile import PE
+            
+            filepath = ida_nalt.get_input_file_path()
+            if not filepath or not Path(filepath).exists():
+                return "unknown"
+                
+            pe = PE(filepath)
+            if not (hasattr(pe, 'VS_FIXEDFILEINFO') and pe.VS_FIXEDFILEINFO):
+                return "unknown"
+                
+            verinfo = pe.VS_FIXEDFILEINFO[0]
+            return f"{verinfo.ProductVersionMS >> 16}.{verinfo.ProductVersionMS & 0xFFFF}.{verinfo.ProductVersionLS >> 16}.{verinfo.ProductVersionLS & 0xFFFF}"
+        except (ImportError, Exception):
+            return "unknown"
 
-    param_string = param_string.replace("\n", "")
-    param_string = param_string.replace("(", "")
 
-    return param_string
+class ParameterParser:
+    """Modern parameter parsing with comprehensive validation"""
+    
+    VARIABLE_PATTERNS = re.compile(r'[va]\d+|_[A-Z]+|LL')
+    EXPRESSION_PATTERNS = re.compile(r'<<|>>|&|\||\+\+|--|->') 
+    NUMERIC_CLEAN = re.compile(r'[^0-9A-Fa-fx]')
+    
+    @classmethod
+    def clean_for_display(cls, param: str) -> str:
+        """Clean parameter for display while preserving structure"""
+        if not param or not isinstance(param, str):
+            return ""
+            
+        # Remove type suffixes
+        cleaned = param.strip()
+        for suffix in ["u,", "i64,", ");", ")"]:
+            if cleaned.endswith(suffix.rstrip(",")):
+                cleaned = cleaned[:-len(suffix.rstrip(","))].strip()
+                break
+        
+        return ' '.join(cleaned.split())
+
+    @classmethod
+    def contains_variables(cls, param: str) -> bool:
+        """Check if parameter contains variables or complex expressions"""
+        if not param:
+            return False
+        return bool(cls.VARIABLE_PATTERNS.search(param) or cls.EXPRESSION_PATTERNS.search(param))
+
+    @classmethod
+    def is_simple_numeric(cls, param: str) -> bool:
+        """Check if parameter is a simple numeric value"""
+        if not param:
+            return False
+            
+        cleaned = cls.NUMERIC_CLEAN.sub('', param.replace('0x', ''))
+        return bool(cleaned) and all(c in "0123456789ABCDEFabcdef" for c in cleaned)
+
+    @classmethod
+    def parse_numeric(cls, param: str) -> Optional[int]:
+        """Parse numeric value from parameter"""
+        if not cls.is_simple_numeric(param):
+            return None
+            
+        cleaned = param.replace("u", "").replace("i64", "").replace("LL", "").replace(" ", "")
+        try:
+            return int(cleaned, 16 if "0x" in param else 10)
+        except ValueError:
+            return None
+
+    @classmethod
+    def extract_hypercall_id(cls, param: str, function_name: str, hardcoded: HardcodedHypercalls) -> Union[int, str]:
+        """Extract hypercall ID with comprehensive validation"""
+        if not param or not function_name:
+            return "invalid_input"
+
+        display_param = cls.clean_for_display(param)
+        
+        # Try numeric parsing first
+        numeric_id = cls.parse_numeric(param)
+        if numeric_id is not None:
+            return numeric_id
+
+        # Check for variables/expressions
+        if cls.contains_variables(display_param):
+            return display_param
+
+        # Try hardcoded lookup
+        hardcoded_id = hardcoded.find_by_name(function_name)
+        return hardcoded_id if hardcoded_id is not None else display_param
 
 
-def find_value_in_hvcalls_hardcoded(d_value):
-    global g_hardcoded_hvcalls
+class DecompilerInterface:
+    """Interface to IDA Hex-Rays decompiler with validation"""
+    
+    @staticmethod
+    def is_valid_address(address: int) -> bool:
+        """Validate if address is decompilable"""
+        return address != idc.BADADDR and ida_funcs.get_func(address) is not None
 
-    for d_dict in g_hardcoded_hvcalls:
-        for key, value in d_dict.items():
-            if value == d_value:
-                print("record was found in g_hardcoded_hvcalls array. key:", int(key), "key type:", type(key), "value:",
-                      value)
-                return int(key)
+    @staticmethod
+    def decompile_function(address: int) -> Optional[str]:
+        """Safely decompile function with validation"""
+        if not DecompilerInterface.is_valid_address(address):
+            return None
+            
+        try:
+            return str(ida_hexrays.decompile(address))
+        except Exception:
+            return None
 
-    return "id_unknown"
+    @staticmethod
+    def extract_function_parameters(code: str, func_name: str) -> str:
+        """Extract function parameters using regex"""
+        if not code or not func_name:
+            return ""
+
+        pattern = rf"{re.escape(func_name)}\s*\(([^)]*)\)"
+        match = re.search(pattern, code)
+        return match.group(1).replace('\n', ' ').strip() if match else ""
+
+    @classmethod
+    def get_parameter_by_index(cls, code: str, func_name: str, index: int) -> str:
+        """Get parameter by index with validation"""
+        if index < 0:
+            return ""
+            
+        params = cls.extract_function_parameters(code, func_name)
+        if not params:
+            return ""
+            
+        param_list = [p.strip() for p in params.split(',')]
+        return param_list[index] if 0 <= index < len(param_list) else ""
 
 
-def extract_hvcall_id_from_param(number_str, hvcall_name):
-    global g_hvcall_dict_unknown_index
-    b_hex = False
+class UnknownHypercallResolver:
+    """Resolves unknown hypercalls using function body analysis"""
+    
+    HYPERCALL_FUNCTIONS = [
+        "HvcallInitiateHypercall", "HvcallFastExtended", 
+        "ShvlpInitiateFastHypercall", "ShvlpInitiateRepListHypercall",
+        "WinHvpSimplePoolHypercall_CallViaMacro", "WinHvpRangeRepHypercall",
+        "WinHvpSpecialListRepHypercall"
+    ]
+    
+    @classmethod
+    def resolve_from_body(cls, param: str, func_name: str, body: str) -> Optional[int]:
+        """Resolve parameter to concrete integer value"""
+        if not all([param, func_name, body]):
+            return None
 
-    # hvcall_name = hvcall_name.replace("WinHv", "HvCall")
+        # Find matching hypercall in body
+        for hv_func in cls.HYPERCALL_FUNCTIONS:
+            first_param = cls._extract_first_param_from_calls(body, hv_func)
+            if first_param and cls._params_match(param, first_param):
+                return cls._resolve_to_concrete_value(first_param, body)
+        
+        return None
 
-    id_str = number_str.find("u,")
+    @staticmethod
+    def _extract_first_param_from_calls(code: str, func_name: str) -> Optional[str]:
+        """Extract first parameter from function calls"""
+        pattern = rf"{re.escape(func_name)}\s*\(\s*([^,)]+)"
+        match = re.search(pattern, code)
+        return match.group(1).strip() if match else None
 
-    if id_str != -1:
-        b_hex = True
-    else:
-        id_str = number_str.find("i64")
+    @staticmethod
+    def _params_match(param1: str, param2: str) -> bool:
+        """Check if parameters match with normalization"""
+        normalize = lambda p: re.sub(r'[ui]\d*|LL|\s', '', p.lower())
+        return normalize(param1) in normalize(param2) or normalize(param2) in normalize(param1)
 
-    if id_str != -1:
-        hvcall_id = number_str[:id_str]
-    else:
-        hvcall_id = number_str
+    @staticmethod
+    def _resolve_to_concrete_value(param: str, body: str) -> Optional[int]:
+        """Attempt to resolve parameter to concrete integer"""
+        # Try direct numeric conversion
+        try:
+            cleaned = re.sub(r'[ui]\d*|LL|\s', '', param)
+            return int(cleaned, 16 if '0x' in param else 10)
+        except ValueError:
+            pass
 
-    if (hvcall_id.find("0x") != -1) and (b_hex == False):
-        b_hex = True
+        # Look for variable assignments
+        var_name = re.match(r'^([va]\d+)', param)
+        if var_name:
+            assignment_pattern = rf"{var_name.group(1)}\s*=\s*([^;]+)"
+            match = re.search(assignment_pattern, body)
+            if match:
+                try:
+                    value = match.group(1).strip()
+                    return int(value, 16 if '0x' in value else 10)
+                except ValueError:
+                    pass
 
-    #
-    # some exceptions for ShvlInjectVtl0Nmi
-    # ShvlpInitiateFastHypercall(v0 + 0x94, &v2, (v0 + 32), 0, v0, v0, v0);
-    #
+        return None
 
-    if hvcall_id.find("+") != -1:
-        digit_right_bound = hvcall_id.find("+") + 1
-        hvcall_id = hvcall_id[digit_right_bound:]
 
-    #
-    # some exceptions for ShvlModifySparseSpaPageHostAccess
-    # (ShvlpInitiateRepListHypercall)(0xD8 - (a1 != 0), 1i64, *a5, v6, 8, a4, 8, 0i64, 0, a5);
-    #
+class ModuleConfiguration:
+    """Configuration for different module types"""
+    
+    MODULES = {
+        "winhvr.sys": [("WinHvpSimplePoolHypercall_CallViaMacro", 1), ("WinHvpRangeRepHypercall", 0), ("WinHvpSpecialListRepHypercall", 0)],
+        "winhv.sys": [("WinHvpSimplePoolHypercall_CallViaMacro", 1), ("WinHvpRangeRepHypercall", 0), ("WinHvpSpecialListRepHypercall", 0)],
+        "securekernel.exe": [("ShvlpInitiateFastHypercall", 0), ("ShvlpInitiateRepListHypercall", 0)],
+        "securekernella57.exe": [("ShvlpInitiateFastHypercall", 0), ("ShvlpInitiateRepListHypercall", 0)],
+        "ntoskrnl.exe": [("HvcallFastExtended", 0), ("HvcallInitiateHypercall", 0)],
+        "ntkrla57.exe": [("HvcallFastExtended", 0), ("HvcallInitiateHypercall", 0)]
+    }
 
-    if hvcall_id.find("-") != -1:
-        digit_left_bound = hvcall_id.find("-")
-        hvcall_id = hvcall_id[:digit_left_bound]
+    @classmethod
+    def get_config(cls, module_name: str) -> Optional[List[tuple]]:
+        """Get configuration for module with validation"""
+        return cls.MODULES.get(module_name) if module_name else None
 
-    hvcall_id = hvcall_id.replace(" ", "")
 
-    print("number_str", number_str)
-    print("hvcall_id", hvcall_id)
+class HypercallExtractor:
+    """Main hypercall extraction engine with modern Python features"""
+    
+    def __init__(self, config: Config):
+        self.config = config
+        self.hardcoded = HardcodedHypercalls()
+        self.parser = ParameterParser()
+        self.resolver = UnknownHypercallResolver()
+        self.known_hypercalls: Dict[Union[int, str], str] = {}
+        self.unknown_hypercalls: Dict[int, HypercallEntry] = {}
+        self.unknown_index = 0
 
-    #
-    # First, we try extract hvcall_id from cypher. If it is hard-extracted value (like v10 from Hex-Rays) we need extract it from default array or written to g_hvcall_dict_unknown
-    #
+    def extract_from_module(self, module_name: str) -> bool:
+        """Extract hypercalls from specific module"""
+        if not module_name:
+            return False
+            
+        config = ModuleConfiguration.get_config(module_name)
+        if not config:
+            print(f"Unsupported module: {module_name}")
+            return False
 
-    try:
-        if b_hex:
-            hvcall_id = hvcall_id.replace("u", "")
-            hvcall_id = int(hvcall_id, 16)
+        total_processed = sum(self._process_function(func_name, param_idx) for func_name, param_idx in config)
+        print(f"Processed {total_processed} hypercalls for {module_name}")
+        return total_processed > 0
+
+    def _process_function(self, func_name: str, param_index: int) -> int:
+        """Process single function for hypercall extraction"""
+        if not func_name or param_index < 0:
+            return 0
+
+        func_addr = idc.get_name_ea_simple(func_name)
+        if func_addr == idc.BADADDR:
+            return 0
+
+        count = 0
+        for xref in idautils.XrefsTo(func_addr, ida_xref.XREF_ALL):
+            caller_name = self._get_function_name(xref.frm)
+            if not caller_name:
+                continue
+
+            entry = self._extract_from_xref(xref, func_name, param_index, caller_name)
+            if entry:
+                self._add_hypercall(entry)
+                count += 1
+
+        return count
+
+    def _get_function_name(self, address: int) -> Optional[str]:
+        """Get function name with validation"""
+        if address == idc.BADADDR:
+            return None
+        name = idc.get_func_name(address)
+        return name if name and name != "WinHvpAllocatingHypercall" else None
+
+    def _extract_from_xref(self, xref, func_name: str, param_idx: int, caller_name: str) -> Optional[HypercallEntry]:
+        """Extract hypercall from cross-reference"""
+        decompiled = DecompilerInterface.decompile_function(xref.frm)
+        if not decompiled:
+            return None
+
+        param = DecompilerInterface.get_parameter_by_index(decompiled, func_name, param_idx)
+        if not param:
+            return None
+
+        hv_id = self.parser.extract_hypercall_id(param, caller_name, self.hardcoded)
+        return HypercallEntry(hv_id, caller_name, decompiled) if hv_id else None
+
+    def _add_hypercall(self, entry: HypercallEntry) -> None:
+        """Add hypercall with duplicate handling"""
+        if isinstance(entry.id, str) and self.parser.contains_variables(entry.id):
+            self.unknown_hypercalls[self.unknown_index] = entry
+            self.unknown_index += 1
         else:
-            hvcall_id = int(hvcall_id)
-    except:
+            # Handle numeric IDs with duplicate resolution
+            resolved_id = entry.id
+            if isinstance(resolved_id, int) and resolved_id in self.known_hypercalls:
+                resolved_id += self.config.duplicate_prefix
+                
+            suffix = "_hardcoded" if self.hardcoded.find_by_name(entry.name) else ""
+            self.known_hypercalls[resolved_id] = f"{entry.name}{suffix}"
 
-        hvcall_id_hard = find_value_in_hvcalls_hardcoded(hvcall_name)  # can return number or string "id_unknown"
-        print("hvcall_id_hard", hvcall_id_hard)
+    def resolve_unknowns(self) -> int:
+        """Resolve unknown hypercalls and return count of resolved"""
+        resolved_count = 0
+        resolved_indices = []
 
-        if hvcall_id_hard == "id_unknown":
-            hvcall_dict_unknown_entry = [hvcall_id, hvcall_name]
-            g_hvcall_dict_unknown[g_hvcall_dict_unknown_index] = hvcall_dict_unknown_entry
-            g_hvcall_dict_unknown_index = g_hvcall_dict_unknown_index + 1
-            print(hvcall_name, "was added to unknown hvcalls array")
-            hvcall_id = "id_unknown"
-        else:
-            g_hvcall_dict[hvcall_id_hard] = hvcall_name + "_hardcoded_value"
-            hvcall_id = "item_replaced"
+        for idx, entry in self.unknown_hypercalls.items():
+            concrete_value = self.resolver.resolve_from_body(str(entry.id), entry.name, entry.decompiled_code)
+            if concrete_value is not None:
+                self.known_hypercalls[concrete_value] = entry.name
+                resolved_indices.append(idx)
+                resolved_count += 1
+                print(f"Resolved: {entry.id} -> {hex(concrete_value)} ({entry.name})")
 
-    if hvcall_id == 0:
-        print("hvcall_id in str format", number_str)
+        # Remove resolved entries
+        for idx in resolved_indices:
+            del self.unknown_hypercalls[idx]
 
-    return hvcall_id  # if we return value after replacing we can get problem with next parsing of old dict
+        return resolved_count
 
+    def save_results(self, idb_name: str, version: str) -> None:
+        """Save results with automatic resolution"""
+        if not idb_name:
+            return
 
-def get_hvcall_from_decompiler_result(hvcall_aux_fn_name, fn_address, arg_number, hvcall_name):
+        FileOperations.ensure_directories(self.config.output_dir, self.config.unknown_dir)
+        
+        resolved_count = self.resolve_unknowns()
+        
+        # Save known hypercalls
+        if self.known_hypercalls:
+            main_file = self.config.output_dir / f"{idb_name}_{version}.json"
+            sorted_data = self._create_sorted_output(self.known_hypercalls)
+            FileOperations.save_json(main_file, sorted_data)
 
-    hvcall_id = 0
+        # Save unknown hypercalls
+        if self.unknown_hypercalls:
+            unknown_file = self.config.unknown_dir / f"unknown_{idb_name}_{version}.json"
+            unknown_data = {f"param_{idx}": {"parameter": str(entry.id), "function": entry.name, "function_body": entry.decompiled_code} 
+                          for idx, entry in self.unknown_hypercalls.items()}
+            FileOperations.save_json(unknown_file, unknown_data)
 
-    try:
-        hv_decompile = str(idaapi.decompile(fn_address))
-    except:
-        print("bad function decompilation", hvcall_aux_fn_name)
-        return ""
+        self._print_summary(resolved_count)
 
-    if hv_decompile:
+    def _create_sorted_output(self, data: Dict[Union[int, str], str]) -> Dict[str, str]:
+        """Create sorted output for JSON"""
+        def sort_key(item):
+            key = item[0]
+            if isinstance(key, int):
+                return (0, key)
+            elif isinstance(key, str) and key.startswith('0x'):
+                try:
+                    return (0, int(key, 16))
+                except ValueError:
+                    return (1, key)
+            else:
+                return (1, key)
 
-        param_string = get_function_with_params(hv_decompile, hvcall_aux_fn_name)
+        sorted_items = sorted(data.items(), key=sort_key)
+        return {(hex(k) if isinstance(k, int) else str(k)): v for k, v in sorted_items}
 
-        print(hvcall_aux_fn_name + ". param_string:" + param_string + ". hvcall_name: " + hvcall_name)
-
-        #
-        # parsing digital number of cypher. Function can get 5 or 6 parameters
-        # part of param in hex format like "0x4Cu", 219, 80i64, 0xCi64
-        #
-
-        param0_right_bound = param_string.find(", ")
-        param1_right_bound = param_string.find(", ", param0_right_bound + 2)
-
-        #
-        # if function has only 2 parameters
-        #
-
-        if param1_right_bound == -1:
-            param1_right_bound = param_string.find(");")
-            if param1_right_bound == -1:
-                param1_right_bound = param_string.find(")")
-
-        print("param0_right_bound", param0_right_bound)
-        print("param1_right_bound", param1_right_bound)
-
-        #
-        # parsing different parameters
-        # arg_number - number of arguments position in function parameters
-        #
-
-        if arg_number == 0:
-            param0 = param_string[:param0_right_bound]
-            hvcall_id = extract_hvcall_id_from_param(param0, hvcall_name)
-            print("id0", hvcall_id)
-
-        if arg_number == 1:
-            param1 = param_string[(param0_right_bound + 2):param1_right_bound]
-            hvcall_id = extract_hvcall_id_from_param(param1, hvcall_name)
-            print("id1", hvcall_id)
-
-        #
-        # we have results such as 0xCi64 in WinHvModifyVtlProtectionMask
-        # looks like decompiler error. We can convert number in 12I64
-        #
-
-    return hvcall_id
+    def _print_summary(self, resolved_count: int) -> None:
+        """Print extraction summary"""
+        print(f"\nExtraction Summary:")
+        print(f"Known hypercalls: {len(self.known_hypercalls)}")
+        print(f"Unknown hypercalls: {len(self.unknown_hypercalls)}")
+        if resolved_count > 0:
+            print(f"Auto-resolved: {resolved_count}")
 
 
-def find_hvcall_by_aux_function_name(fn_name, arg_number, method):
-    #
-    # arguments number from zero
-    #
+def main() -> None:
+    """Main extraction function with modern error handling"""
+    # Wait for auto-analysis if needed
+    if len(idc.ARGV) > 0:
+        ida_auto.auto_wait()
 
-    count = 0
+    # Initialize with modern configuration
+    config = Config()
+    extractor = HypercallExtractor(config)
+    
+    # Get module information
+    idb_name = FileOperations.get_idb_name()
+    version = FileOperations.get_file_version()
+    
+    if not idb_name:
+        print("Error: Could not determine IDB name")
+        return
 
-    print("Processing ", fn_name, "...")
-
-    fn_address = idc.get_name_ea_simple(fn_name)
-
-    if fn_address == 0xffffffffffffffff:
-        print("Bad function name")
-        return False
-
-    for xref in idautils.XrefsTo(fn_address, ida_xref.XREF_ALL):
-
-        # print(xref.type, XrefTypeName(xref.type), 'from', hex(xref.frm), 'to', hex(xref.to))
-        hvcall_name = get_function_name_by_address(xref.frm)
-
-        if (hvcall_name == "") or (hvcall_name == "WinHvpAllocatingHypercall"):
-            continue
-
-        error_info = 0
-
-        if method == "decompile":
-
-            hvcall_id = get_hvcall_from_decompiler_result(fn_name, xref.frm, arg_number, hvcall_name)
-
-            if (hvcall_id != 0) and (hvcall_id != "id_unknown") and (hvcall_id != "item_replaced"):
-
-                if type(hvcall_id) == "str":
-                    print("Warning. type of hvcall_id is string:", hvcall_id(), hvcall_name)
-
-                #
-                # we need check if hvcall_id was duplicated. It can be seen in ntoskrnl 10.0.25931.1000
-                #
-
-                if hvcall_id in g_hvcall_dict:
-                    hvcall_id = hvcall_id + g_duplicate_prefix
-                    print("Warning. hvcall_id: ", hvcall_id, " was duplicated in hvcall_name:", hvcall_name, ". New hvcall_id:", hex(hvcall_id))
-                    
-                g_hvcall_dict[hvcall_id] = hvcall_name   # .replace("WinHv", "HvCall")  # we need check hardcoded array
-
-            count += 1
-
-        if method == "disasm":
-            var_args = ida_helper.get_call_arguments_x64_windows(xref.frm, debug=False)
-            # print(str(var_args))
-            if var_args:
-                if len(var_args) > arg_number:
-                    g_hvcall_dict[var_args[arg_number]] = hvcall_name # .replace("WinHv", "HvCall")
-                    count += 1
-
-            # print(hex(var_args[arg_number]))
-
-    print("count of xRefs functions in ", fn_name, ": ", count)
-
-
-def check_dict_on_str(dict1):
-    l_list = list(dict1.keys())
-
-    for key in l_list:
-        print("Key type is: ", type(key), "Key is: ", key, "value: ", dict1[key])
-        # if type(key) == 'str':
-        #    print("Warning. Key type is string: ", key, "value: ", dict1[key])
-
-
-def print_hvcall(hvcalls, is_str):
-    if is_str:
-        for item in hvcalls.items():
-            str_print = str(item[0]) + ": " + str(item[1])
-            print(str_print)
+    print(f"Processing: {idb_name} (v{version})")
+    
+    # Extract hypercalls
+    if extractor.extract_from_module(idb_name):
+        extractor.save_results(idb_name, version)
+        print(f"Analysis complete for {idb_name}")
     else:
-        check_dict_on_str(hvcalls)
-        for item in sorted(hvcalls.items()):
-            str_print = hex(int(item[0])) + ": " + item[1]
-            print(str_print)
+        print(f"No hypercalls extracted for {idb_name}")
+
+    # Exit if running with arguments
+    if len(idc.ARGV) > 0:
+        idc.qexit(0)
 
 
-def str_key_to_int_with_sorting(dictionary):
-    dict_tmp = {}
-
-    for key in dictionary.keys():
-        dict_tmp[int(key)] = dictionary[key]
-
-    sorted_dict = {k: dict_tmp[k] for k in sorted(dict_tmp)}
-
-    dict_tmp = {}
-
-    for key in sorted_dict.keys():
-        dict_tmp[hex(key)] = sorted_dict[key]
-
-    return dict_tmp
-
-
-def int_key_to_hex(dictionary):
-    dict_result = {}
-
-    for key in dictionary.keys():
-        dict_result[hex(key)] = dictionary[key]
-
-    return dict_result
-
-
-def get_file_version():
-    from pefile import PE
-
-    pename = ida_nalt.get_input_file_path()
-
-    pe = PE(pename)
-    if not 'VS_FIXEDFILEINFO' in pe.__dict__:
-        print("ERROR: Oops, %s has no version info. Can't continue." % (pename))
-        return
-    if not pe.VS_FIXEDFILEINFO:
-        print("ERROR: VS_FIXEDFILEINFO field not set for %s. Can't continue." % (pename))
-        return
-
-    verinfo = pe.VS_FIXEDFILEINFO[0]
-
-    prodver = str(verinfo.ProductVersionMS >> 16) + "." + str(verinfo.ProductVersionMS & 0xFFFF) + "." + str(
-        verinfo.ProductVersionLS >> 16) + "." + str(verinfo.ProductVersionLS & 0xFFFF)
-
-    return prodver
-
-# main function
-# extract hvcalls from one IDA PRO idb file
-
-def extract_hvcalls():
-
-    #
-    # winhvr.sys, winhv.sys
-    #
-
-    if g_idb_name == "":
-        print("idb name is not specified")
-        return
-
-    if (g_idb_name == "winhvr.sys") or (g_idb_name == "winhv.sys"):
-        find_hvcall_by_aux_function_name('WinHvpSimplePoolHypercall_CallViaMacro', 1, "decompile")
-        find_hvcall_by_aux_function_name('WinHvpRangeRepHypercall', 0, "decompile")
-        find_hvcall_by_aux_function_name('WinHvpSpecialListRepHypercall', 0, "decompile")
-
-    #
-    # securekernel.exe, securekernella57.exe
-    #
-
-    if (g_idb_name == "securekernel.exe") or (g_idb_name == "securekernella57.exe"):
-        find_hvcall_by_aux_function_name('ShvlpInitiateFastHypercall', 0, "decompile")
-        find_hvcall_by_aux_function_name('ShvlpInitiateRepListHypercall', 0, "decompile")
-
-    #
-    # ntoskrnl.exe, ntkrla57.exe
-    #
-
-    if (g_idb_name == "ntoskrnl.exe") or (g_idb_name == "ntkrla57.exe"):
-        find_hvcall_by_aux_function_name('HvcallFastExtended', 0, "decompile")
-        find_hvcall_by_aux_function_name('HvcallInitiateHypercall', 0, "decompile")
-
-    print_hvcall(g_hvcall_dict, False)
-
-    print("saving g_hvcall_dict to json ...")
-
-    fv = get_file_version()
-
-    #
-    # if you copy idb from another place you can have error with pathM which are stored in idb file
-    #
-
-    filename = g_hvcall_dir_saving+ida_helper.get_idb_name() + "_" + fv + ".json"
-    hvcall_dict = str_key_to_int_with_sorting(g_hvcall_dict)
-    save_dict_to_file(filename, hvcall_dict)
-
-    #
-    # save file with uknown hypercalls
-    #
-
-    if len(g_hvcall_dict_unknown) > 0:
-        unknown_filename = g_hvcall_unknown_dir_saving + "unknown_" + ida_helper.get_idb_name() + "_" + fv + ".json"
-        save_dict_to_file(unknown_filename, g_hvcall_dict_unknown)
-        print("hvcalls with unknown result of analysis  - need manual analysis")
-        print_hvcall(g_hvcall_dict_unknown, True)
-
-    print("g_hvcall_dict lenght:", len(g_hvcall_dict))
-    print("g_hvcall_dict_unknown lenght:", len(g_hvcall_dict_unknown))
-    print("db file:", ida_nalt.get_input_file_path())
-    print("idb", g_idb_name)
-
-
-#dbg.bp(name=="extract_hvcalls", f"found bp")
-extract_hvcalls()
-
-if g_script_args > 0:
-    idc.qexit(0)
+if __name__ == "__main__":
+    main()

@@ -1,6 +1,6 @@
 {
     "IdaPath": "C:\\Program Files\\IDA Professional 9.2\\ida.exe",
     "WindowsBinaryPath": "D:\\HyperVBinaries",
-    "ScriptPath": "D:\\python",
+    "ScriptPath": "python",
     "ResultPath": "D:\\HyperVBinaries\\results"
 }

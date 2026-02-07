@@ -157,17 +157,19 @@ namespace HvcallGui.Views
                                            Math.Max(0, originalColor.G - 30),
                                            Math.Max(0, originalColor.B - 30));
 
-                // FIXED: Proper disposal pattern for timer
+                // Timer is disposed in the Tick handler after it fires once
+#pragma warning disable CA2000 // Dispose objects before losing scope
                 var timer = new System.Windows.Forms.Timer { Interval = 100 };
+#pragma warning restore CA2000
                 EventHandler? timerTickHandler = null;
                 timerTickHandler = (s, args) =>
                 {
                     BackColor = originalColor;
                     if (timer != null)
                     {
-                        timer.Tick -= timerTickHandler; // Remove handler first
+                        timer.Tick -= timerTickHandler;
                         timer.Stop();
-                        timer.Dispose(); // Proper disposal
+                        timer.Dispose();
                         timer = null;
                     }
                 };

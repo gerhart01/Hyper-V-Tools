@@ -58,6 +58,7 @@ namespace HvcallGui.Views
                     return;
                 }
 
+#pragma warning disable CS0618 // UNION_SCRIPT still required by ExtractionParameters
                 var parameters = new ExtractionParameters(
                     _model.BinaryDirectory,
                     _model.IdaPath,
@@ -66,6 +67,7 @@ namespace HvcallGui.Views
                     AppConstants.UNION_SCRIPT,
                     _model.ProcessIdbFiles
                 );
+#pragma warning restore CS0618
 
                 await _extractor.ExtractHyperVCalls(parameters);
             }

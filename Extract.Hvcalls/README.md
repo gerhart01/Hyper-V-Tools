@@ -14,13 +14,13 @@ additionally can be added
 
 Use IDA PRO for binary analysis
 
-1. Download fresh version of idahunt plugin (https://github.com/nccgroup/idahunt) and place it in the directory with Extract.Hvcalls - idahunt can be used in some cases for disassembling binaries.
-2. Install python plugins
+1. Install python plugins
 
 ```python
 pip install:
  sark
  pefile
+ pyqt5
 ``` 
  or
  

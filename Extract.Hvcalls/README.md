@@ -12,9 +12,7 @@ additionally can be added
 	securekernella57.exe
 	ntkrla57.exe
 
-Use IDA PRO for binary analysis
-
-1. Install python plugins
+Use IDA PRO for binary analysis. Install python plugins
 
 ```python
 pip install:
@@ -28,14 +26,14 @@ pip install:
  pip install -r requirements.txt
 ```
 
-3. Run Extract.Hvcalls.exe
+1. Run Extract.Hvcalls.exe
 
 ![](./images/image001.png)
 
-4. Select path to Hyper-V core binaries and IDA PRO or modify config.json in program folder (preferably for multiple runnings)
-5. Click 'Start' button 
-6. Waiting, until IDA PRO finished script processing
-7. You can see resulting json files inside "result" directory:
+2. Select path to Hyper-V core binaries and IDA PRO or modify config.json in program folder (preferably for multiple runnings)
+3. Click 'Start' button 
+4. Waiting, until IDA PRO finished script processing
+5. You can see resulting json files inside "result" directory:
 	hvcalls_results.json - list of Hyper-V hypercalls
 	hvcalls_unknown.json - list of hypercalls name with unknown Hypercall code number (you need to do manual analysis for it)
 	

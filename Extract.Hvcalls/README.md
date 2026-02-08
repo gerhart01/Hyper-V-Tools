@@ -26,13 +26,13 @@ pip install:
  pip install -r requirements.txt
 ```
 
-1. Run Extract.Hvcalls.exe
+1. Run HvcallGUI.exe
 
 ![](./images/image001.png)
 
 2. Select path to Hyper-V core binaries and IDA PRO or modify config.json in program folder (preferably for multiple runnings)
 3. Click 'Start' button 
-4. Waiting, until IDA PRO finished script processing
+4. Waiting, until IDA PRO had finished script processing
 5. You can see resulting json files inside "result" directory:
 	hvcalls_results.json - list of Hyper-V hypercalls
 	hvcalls_unknown.json - list of hypercalls name with unknown Hypercall code number (you need to do manual analysis for it)

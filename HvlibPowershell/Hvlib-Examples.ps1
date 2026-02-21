@@ -1,6 +1,6 @@
 # ==============================================================================
 # Hvlib-Examples.ps1
-# Version: 1.3.0
+# Version: 1.5.0
 # Description: Complete usage examples for Hvlib PowerShell Module
 # ==============================================================================
 
@@ -10,7 +10,7 @@
 
 # Module Settings
 $script:MODULE_NAME = 'Hvlib'
-$script:MODULE_VERSION = '1.3.0'
+$script:MODULE_VERSION = '1.5.0'
 
 # Memory Constants
 $script:PAGE_SIZE = 0x1000
@@ -1729,7 +1729,231 @@ function Example-SetHvlibVpRegister-Breakpoint {
 
 #endregion
 
+#region Section 13: Symbol Operations (v1.5.0)
+
+function Example-GetHvlibSymbolAddress {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VmName,
+
+        [string]$SymbolFullName = "nt!MmCopyVirtualMemory"
+    )
+
+    Write-SectionHeader "Example 13.1: Get-HvlibSymbolAddress"
+
+    $handle = Get-HvlibPartition -VmName $VmName
+
+    if (-not (Test-ValidHandle -Handle $handle)) {
+        Write-Warning ($script:ERR_VM_NOT_FOUND -f $VmName)
+        return $null
+    }
+
+    Write-Host "Resolving symbol: $SymbolFullName" -ForegroundColor $script:COLOR_INFO
+
+    $address = Get-HvlibSymbolAddress $handle $SymbolFullName
+
+    if ($address -and $address -ne 0) {
+        Write-Host "Symbol resolved successfully:" -ForegroundColor $script:COLOR_SUCCESS
+        Write-PropertyLine -Name "Symbol"  -Value $SymbolFullName
+        Write-PropertyLine -Name "Address" -Value (ConvertTo-HexString -Value $address)
+    } else {
+        Write-Warning "Symbol '$SymbolFullName' not found"
+    }
+
+    Close-HvlibPartition -handle $handle
+    return $address
+}
+
+function Example-GetHvlibSymbolAddress-Multiple {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VmName
+    )
+
+    Write-SectionHeader "Example 13.2: Get-HvlibSymbolAddress - Multiple Symbols"
+
+    $handle = Get-HvlibPartition -VmName $VmName
+
+    if (-not (Test-ValidHandle -Handle $handle)) {
+        Write-Warning ($script:ERR_VM_NOT_FOUND -f $VmName)
+        return $null
+    }
+
+    $symbolNames = @(
+        "winhv!WinHvAllocateOverlayPages"
+        "winhv!WinHvpDllLoadSuccessful"
+        "nt!MmCopyVirtualMemory"
+        "nt!PsGetProcessPeb"
+    )
+
+    Write-Host ("{0,-45} {1}" -f "Symbol", "Address") -ForegroundColor $script:COLOR_SECTION
+    Write-Host ('-' * 65) -ForegroundColor $script:COLOR_INFO
+
+    $resolved = @{}
+    foreach ($sym in $symbolNames) {
+        $addr = Get-HvlibSymbolAddress $handle $sym
+        $addrStr = if ($addr -and $addr -ne 0) { ConvertTo-HexString -Value $addr } else { "Not found" }
+        Write-Host ("{0,-45} {1}" -f $sym, $addrStr)
+        $resolved[$sym] = $addr
+    }
+
+    Close-HvlibPartition -handle $handle
+    return $resolved
+}
+
+function Example-GetHvlibAllSymbols {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VmName,
+
+        [string]$DriverName = "winhv"
+    )
+
+    Write-SectionHeader "Example 13.3: Get-HvlibAllSymbols"
+
+    $handle = Get-HvlibPartition -VmName $VmName
+
+    if (-not (Test-ValidHandle -Handle $handle)) {
+        Write-Warning ($script:ERR_VM_NOT_FOUND -f $VmName)
+        return $null
+    }
+
+    Write-Host "Enumerating symbols for: $DriverName" -ForegroundColor $script:COLOR_INFO
+
+    $symbols = Get-HvlibAllSymbols $handle $DriverName
+
+    if ($symbols -and $symbols.Count -gt 0) {
+        Write-Host "Total symbols: $($symbols.Count)" -ForegroundColor $script:COLOR_SUCCESS
+
+        Write-Host "`nFirst 10 symbols:" -ForegroundColor $script:COLOR_INFO
+        Write-Host ("{0,-50} {1,-18} {2}" -f "Name", "Address", "Size") -ForegroundColor $script:COLOR_SECTION
+        Write-Host ('-' * 80) -ForegroundColor $script:COLOR_INFO
+
+        $symbols | Select-Object -First 10 | ForEach-Object {
+            Write-Host ("{0,-50} {1,-18} {2}" -f $_.Name, $_.Address, $_.Size)
+        }
+    } else {
+        Write-Warning "No symbols found for '$DriverName'"
+    }
+
+    Close-HvlibPartition -handle $handle
+    return $symbols
+}
+
+function Example-GetHvlibSymbolTableLength {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VmName
+    )
+
+    Write-SectionHeader "Example 13.4: Get-HvlibSymbolTableLength"
+
+    $handle = Get-HvlibPartition -VmName $VmName
+
+    if (-not (Test-ValidHandle -Handle $handle)) {
+        Write-Warning ($script:ERR_VM_NOT_FOUND -f $VmName)
+        return $null
+    }
+
+    $drivers = @('ntoskrnl', 'winhv', 'kdcom', 'mcupdate', 'securekernel')
+
+    Write-Host ("{0,-20} {1}" -f "Driver", "Symbol Count") -ForegroundColor $script:COLOR_SECTION
+    Write-Host ('-' * 35) -ForegroundColor $script:COLOR_INFO
+
+    $counts = @{}
+    foreach ($drv in $drivers) {
+        $count = Get-HvlibSymbolTableLength $handle $drv
+        $counts[$drv] = $count
+        if ($count -gt 0) {
+            Write-Host ("{0,-20} {1}" -f $drv, $count) -ForegroundColor $script:COLOR_SUCCESS
+        } else {
+            Write-Host ("{0,-20} {1}" -f $drv, "N/A") -ForegroundColor $script:COLOR_WARNING
+        }
+    }
+
+    Close-HvlibPartition -handle $handle
+    return $counts
+}
+
+#endregion
+
 #region Advanced Workflows
+
+function Workflow-SymbolAnalysis {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$VmName,
+
+        [string[]]$DriverNames = @('ntoskrnl', 'winhv', 'kdcom')
+    )
+
+    Write-MainHeader "WORKFLOW: Symbol Analysis (v1.5.0)"
+
+    $handle = Get-HvlibPartition -VmName $VmName
+
+    if (-not (Test-ValidHandle -Handle $handle)) {
+        Write-Warning ($script:ERR_VM_NOT_FOUND -f $VmName)
+        return $null
+    }
+
+    # Step 1: Symbol counts
+    Write-Host "Step 1: Symbol table sizes..." -ForegroundColor $script:COLOR_SECTION
+    Write-Host ("{0,-20} {1}" -f "Driver", "Symbols") -ForegroundColor $script:COLOR_INFO
+    Write-Host ('-' * 35) -ForegroundColor $script:COLOR_INFO
+
+    foreach ($drv in $DriverNames) {
+        $count = Get-HvlibSymbolTableLength $handle $drv
+        $countStr = if ($count -gt 0) { $count.ToString() } else { "N/A" }
+        Write-Host ("{0,-20} {1}" -f $drv, $countStr)
+    }
+
+    # Step 2: Key symbol resolution
+    Write-Host "`nStep 2: Resolving key symbols..." -ForegroundColor $script:COLOR_SECTION
+
+    $keySymbols = @(
+        "winhv!WinHvAllocateOverlayPages"
+        "winhv!WinHvpDllLoadSuccessful"
+        "nt!MmCopyVirtualMemory"
+        "nt!KeBugCheckEx"
+    )
+
+    $resolved = @{}
+    foreach ($sym in $keySymbols) {
+        $addr = Get-HvlibSymbolAddress $handle $sym
+        if ($addr -and $addr -ne 0) {
+            $resolved[$sym] = $addr
+        }
+    }
+
+    # Step 3: Full enum for first driver with symbols
+    Write-Host "`nStep 3: Full symbol enumeration for '$($DriverNames[0])'..." -ForegroundColor $script:COLOR_SECTION
+    $symbols = Get-HvlibAllSymbols $handle $DriverNames[0]
+
+    if ($symbols -and $symbols.Count -gt 0) {
+        Write-PropertyLine -Name "Total symbols" -Value $symbols.Count
+        Write-PropertyLine -Name "First symbol"  -Value $symbols[0].Name
+        Write-PropertyLine -Name "Last symbol"   -Value $symbols[$symbols.Count - 1].Name
+    }
+
+    Close-HvlibPartition -handle $handle
+
+    Write-Host "`nSymbol analysis completed." -ForegroundColor $script:COLOR_SUCCESS
+    return @{
+        Counts   = $counts
+        Resolved = $resolved
+        Symbols  = $symbols
+    }
+}
 
 function Workflow-DebugSession {
     [CmdletBinding()]
@@ -2135,7 +2359,16 @@ function Invoke-AllExamples {
     Workflow-VmInformationReport
     Workflow-MemoryAnalysis -VmName $VmName
     Workflow-ProcessIntrospection -VmName $VmName
-    
+
+    # Section 13: Symbol Operations
+    Example-GetHvlibSymbolAddress -VmName $VmName
+    Example-GetHvlibSymbolAddress-Multiple -VmName $VmName
+    Example-GetHvlibAllSymbols -VmName $VmName
+    Example-GetHvlibSymbolTableLength -VmName $VmName
+
+    # Symbol Workflow
+    Workflow-SymbolAnalysis -VmName $VmName
+
     # Final cleanup
     Example-CloseHvlibPartitions
     
@@ -2183,8 +2416,8 @@ function Invoke-QuickStart {
 #region Configuration and Entry Point
 
 # Default Configuration - Update these values for your environment
-$script:DEFAULT_DLL_PATH = "C:\path\to\hvlibdotnet.dll"
-$script:DEFAULT_VM_NAME = "Windows"
+$script:DEFAULT_DLL_PATH = "C:\Distr\LiveCloudKd_public\hvlibdotnet.dll"
+$script:DEFAULT_VM_NAME = "Windows Server 2025"
 
 # Display Usage Information
 function Show-UsageHelp {
@@ -2222,13 +2455,14 @@ Hvlib Examples Script v$script:MODULE_VERSION Loaded!
    • Example-GetHvlibVpRegister-FullContext -VmName <vm>
    ... and 45 more examples
 
-   Workflows (6):
+   Workflows (7):
    • Workflow-VmInformationReport
    • Workflow-MemoryAnalysis -VmName <vm>
    • Workflow-ProcessIntrospection -VmName <vm>
    • Workflow-SafeMemoryDump -VmName <vm>
-   • Workflow-DebugSession -VmName <vm> ⭐ NEW
-   • Workflow-MultiVmReport ⭐ NEW
+   • Workflow-DebugSession -VmName <vm>
+   • Workflow-MultiVmReport
+   • Workflow-SymbolAnalysis -VmName <vm> ⭐ NEW
 
 📊 Example Sections:
    Section 1:  Library and Configuration (2)
@@ -2239,10 +2473,11 @@ Hvlib Examples Script v$script:MODULE_VERSION Loaded!
    Section 6:  Process Information (4)
    Section 7:  Resource Management (2)
    Section 8:  Utilities (1)
-   Section 9:  ⭐ VM State Control (4) - NEW v1.3.0
-   Section 10: ⭐ Advanced Memory (4) - NEW v1.3.0
-   Section 11: ⭐ VM Introspection (4) - NEW v1.3.0
-   Section 12: ⭐ CPU Registers (6) - NEW v1.3.0
+   Section 9:  VM State Control (4) - v1.3.0
+   Section 10: Advanced Memory (4) - v1.3.0
+   Section 11: VM Introspection (4) - v1.3.0
+   Section 12: CPU Registers (6) - v1.3.0
+   Section 13: ⭐ Symbol Operations (4) - NEW v1.5.0
 
 💡 Usage Example:
    Invoke-QuickStart -DllPath $script:DEFAULT_DLL_PATH -VmName $script:DEFAULT_VM_NAME

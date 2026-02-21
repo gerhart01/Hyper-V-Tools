@@ -4,18 +4,49 @@
 #
 
 import logging
+import os
+import sys
 import threading
-from typing import Any, Dict, IO, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from hvlib import *
 from volatility3.framework import exceptions, interfaces, constants
 from volatility3.framework.configuration import requirements
-from volatility3.framework.layers import resources
 
 g_lkd_handle = 0
 g_vm_handle = 0
 
 vollog = logging.getLogger(__name__)
+
+# --- Diagnostic read logger for Volatility scan analysis ---
+_HVLOG_PATH = os.path.join(os.environ.get("TEMP", "."), "hyperv_reads.log")
+_hvlog_file = None
+_hvlog_lock = threading.Lock()
+
+
+def _hvlog_init():
+    global _hvlog_file
+    if _hvlog_file is None:
+        try:
+            _hvlog_file = open(_HVLOG_PATH, "w")
+            _hvlog_file.write("action,offset_hex,length_hex,length_dec,returned_hex,returned_dec,status\n")
+            _hvlog_file.flush()
+            print(f"[hyperv] Read log: {_HVLOG_PATH}", file=sys.stderr)
+        except Exception:
+            _hvlog_file = False  # Disable on error
+
+
+def _hvlog(offset: int, length: int, returned: int, status: str):
+    global _hvlog_file
+    with _hvlog_lock:
+        if _hvlog_file is None:
+            _hvlog_init()
+        if _hvlog_file and _hvlog_file is not False:
+            _hvlog_file.write(
+                f"read,0x{offset:X},0x{length:X},{length},0x{returned:X},{returned},{status}\n"
+            )
+            _hvlog_file.flush()
+
 
 class BufferDataLayer(interfaces.layers.DataLayerInterface):
     """A DataLayer class backed by a buffer in memory, designed for testing and
@@ -79,7 +110,7 @@ class DummyLock:
 
 
 class FileLayer(interfaces.layers.DataLayerInterface):
-    """a DataLayer backed by a file on the filesystem."""
+    """a DataLayer backed by Hyper-V live VM memory via hvlib.dll."""
 
     def __init__(self,
                  context: interfaces.context.ContextInterface,
@@ -93,18 +124,22 @@ class FileLayer(interfaces.layers.DataLayerInterface):
 
         if g_lkd_handle == 0:
 
-            dll_path = sys.exec_prefix+"\\Lib\\site-packages\\hvlib.dll"
+            dll_path = os.path.join(sys.exec_prefix, "Lib", "site-packages", "hvlib", "hvlib.dll")
             lkd_handle = hvlib(dll_path)
             g_lkd_handle = lkd_handle
 
             vm_ops = lkd_handle.vm_ops
             vm_ops.LogLevel = 1
 
-            lkd_handle.EnumPartitions(vm_ops)
+            b_result = lkd_handle.EnumPartitions(vm_ops)
+
+            if b_result == False:
+                print("EnumPartitions false")
+                return None
 
             print("Select virtual machine ID:")
             vm_id = int(input('').split(" ")[0])
-            # vm_id = 0
+            #vm_id = 0
 
             vm_handle = lkd_handle.SelectPartition(vm_id)
             g_vm_handle = vm_handle
@@ -116,18 +151,16 @@ class FileLayer(interfaces.layers.DataLayerInterface):
             lkd_handle = g_lkd_handle
             vm_handle = g_vm_handle
 
-        self._write_warning = False
         self._location = self.config["location"]
-        self._accessor = resources.ResourceAccessor()
-        self._file_: Optional[IO[Any]] = None
-        self._size: Optional[int] = None
-        self._maximum_address: Optional[int] = lkd_handle.GetData(vm_handle, HvddInformationClass.HvddMmMaximumPhysicalPage) * 0x1000
+        # NOTE: Do NOT open the file via ResourceAccessor/urllib here.
+        # After hvlib.dll loads hvmm.sys driver, urllib's importlib._path_stat
+        # triggers an access violation (segfault).  The hyperv layer reads
+        # live VM memory through hvlib, so the file handle is unnecessary.
+        self._maximum_address: int = lkd_handle.GetData(vm_handle, HvmmInformationClass.InfoMmMaximumPhysicalPage) * 0x1000
         # Construct the lock now (shared if made before threading) in case we ever need it
         self._lock: Union[DummyLock, threading.Lock] = DummyLock()
         if constants.PARALLELISM == constants.Parallelism.Threading:
             self._lock = threading.Lock()
-        # Instantiate the file to throw exceptions if the file doesn't open
-        _ = self._file
 
     @property
     def location(self) -> str:
@@ -135,25 +168,8 @@ class FileLayer(interfaces.layers.DataLayerInterface):
         return self._location
 
     @property
-    def _file(self) -> IO[Any]:
-        """Property to prevent the initializer storing an unserializable open
-        file (for context cloning)"""
-        # FIXME: Add "+" to the mode once we've determined whether write mode is enabled
-        mode = "rb"
-        self._file_ = self._file_ or self._accessor.open(self._location, mode)
-        return self._file_
-
-    @property
     def maximum_address(self) -> int:
         """Returns the largest available address in the space."""
-        # Zero based, so we return the size of the file minus 1
-        if self._maximum_address:
-            return self._maximum_address
-        with self._lock:
-            # orig = self._file.tell()
-            # self._file.seek(0, 2)
-            self._size = self._file.tell()
-            # self._file.seek(orig)
         return self._maximum_address
 
     @property
@@ -171,37 +187,44 @@ class FileLayer(interfaces.layers.DataLayerInterface):
 
     def read(self, offset: int, length: int, pad: bool = False) -> bytes:
         """Reads from the file at offset for length."""
+
         if not self.is_valid(offset, length):
+            _hvlog(offset, length, 0, "INVALID_RANGE")
             invalid_address = offset
             if self.minimum_address < offset <= self.maximum_address:
                 invalid_address = self.maximum_address + 1
             raise exceptions.InvalidAddressException(self.name, invalid_address,
                                                      "Offset outside of the buffer boundaries")
 
-        # TODO: implement locking for multi-threading
         with self._lock:
-            # self._file.seek(offset)
-            # data = self._file.read(length)
-            data = self._lkd_handle.ReadPhysicalMemoryBlock(self._vm_handle, offset, length)
+            try:
+                data = self._lkd_handle.ReadPhysicalMemoryBlock(self._vm_handle, offset, length)
+            except Exception as e:
+                _hvlog(offset, length, 0, f"EXCEPTION:{type(e).__name__}:{e}")
+                raise
 
-        if len(data) < length:
+        if data == 0:
+            # ReadPhysicalMemoryBlock returns 0 on failure
+            _hvlog(offset, length, 0, "SDK_READ_FAILED")
             if pad:
-                data += (b"\x00" * (length - len(data)))
+                return b"\x00" * length
+            raise exceptions.InvalidAddressException(
+                self.name, offset, "ReadPhysicalMemoryBlock returned 0")
+
+        returned = len(data) if data else 0
+        if returned < length:
+            _hvlog(offset, length, returned, f"SHORT_READ(pad={pad})")
+            if pad:
+                data += (b"\x00" * (length - returned))
             else:
                 raise exceptions.InvalidAddressException(
-                    self.name, offset + len(data), "Could not read sufficient bytes from the " + self.name + " file")
+                    self.name, offset + returned, "Could not read sufficient bytes from the " + self.name + " file")
+        else:
+            _hvlog(offset, length, returned, "OK")
         return data
 
     def write(self, offset: int, data: bytes) -> None:
-        """Writes to the file.
-
-        This will technically allow writes beyond the extent of the file
-        """
-        if not self._file.writable():
-            if not self._write_warning:
-                self._write_warning = True
-                vollog.warning("Try to write to unwritable layer: {}".format(self.name))
-            return None
+        """Writes to the VM physical memory via hvlib."""
         if not self.is_valid(offset, len(data)):
             invalid_address = offset
             if self.minimum_address < offset <= self.maximum_address:
@@ -209,22 +232,14 @@ class FileLayer(interfaces.layers.DataLayerInterface):
             raise exceptions.InvalidAddressException(self.name, invalid_address,
                                                      "Data segment outside of the " + self.name + " file boundaries")
         with self._lock:
-            # self._file.seek(offset)
-            # self._file.write(data)
             self._lkd_handle.WritePhysicalMemoryBlock(self._vm_handle, offset, data)
 
     def __getstate__(self) -> Dict[str, Any]:
-        """Do not store the open _file_ attribute, our property will ensure the
-        file is open when needed.
-
-        This is necessary for multi-processing
-        """
-        self._file_ = None
+        """Prepare state for pickling (multi-processing support)."""
         return self.__dict__
 
     def destroy(self) -> None:
         """Closes the file handle."""
-        # self._file.close()
         global g_lkd_handle
         self._lkd_handle.cleanup()
         g_lkd_handle = 0

@@ -11,8 +11,9 @@ and extract files for integration with volatility:
 
 ```
 hyperv.py 
-stacker.py 
 ```
+
+stacker.py - modified volatility volatility3\framework\automagic\stacker.py file with example of integration.
 
 3. Install modules for volatility 3
 
@@ -59,37 +60,36 @@ from volatility3.framework.layers import hyperv
 replace it with next code:
 
 ```python
- #
- # hvlib integration
- #
+        #
+        # hvlib integration
+        #
 
- dir_win = os.getenv('WINDIR')
- dir_win = dir_win.replace('\\','/').lower()
+        dir_win = os.getenv('WINDIR')
+        dir_win = dir_win.replace('\\', '/').lower()
 
- hvlib_fn = "file:///"+dir_win+"/hvmm.dmp"
-
- if location.lower() == hvlib_fn:
-   print("Hyper-V layer is active")
-   physical_layer = hyperv.FileLayer(
-         new_context, current_config_path, current_layer_name
-      )
- else:
-   physical_layer = physical.FileLayer(
-        new_context, current_config_path, current_layer_name
-   )
+        hvlib_fn = "file:///" + dir_win + "/hvmm.dmp"
+        if location.lower() == hvlib_fn:
+            print("Hyper-V layer is active")
+            physical_layer = hyperv.FileLayer(new_context, current_config_path, current_layer_name)
+        else:
+            print("Standard physical_layer is active. hvmm.dmp file is not presented")
+            physical_layer = physical.FileLayer(new_context, current_config_path, current_layer_name)
  ```
 
-1. Copy 
+6. Copy hvlib folder with next files:
 ```
-hvlib.py
+hvlib.py (file will be also presented in standard LiveCloudKd distributive)
 hvlib.dll 
 hvmm.sys 
 ```
-to <python_dir>\Lib\site-packages (f.e. C:\Python312x64\Lib\site-packages).
+to <python_dir>\Lib\site-packages (f.e. C:\Python314x64\Lib\site-packages).
 	If you use some python virtual environment plugins, you need to copy files inside it.  
 	For example to venv\Lib\site-packages for virtualenv.  
-1. Create file C:\windows\hvmm.dmp. It can be empty (volatility have to read real file)  
-2. Execute  
+
+It means that new folder <python_dir>\Lib\site-packages\hvlib must be created.
+
+7. Create file C:\windows\hvmm.dmp. It can be empty (volatility have to read real file)  
+8. Execute  
 
 ```
 python.exe vol.py -vv -f "C:\windows\hvmm.dmp" windows.pslist

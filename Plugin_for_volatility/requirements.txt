@@ -1,0 +1,5 @@
+pefile
+pycryptodome
+yara-python
+yara
+yara_x

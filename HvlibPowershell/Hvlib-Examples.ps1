@@ -2416,8 +2416,8 @@ function Invoke-QuickStart {
 #region Configuration and Entry Point
 
 # Default Configuration - Update these values for your environment
-$script:DEFAULT_DLL_PATH = "C:\Distr\LiveCloudKd_public\hvlibdotnet.dll"
-$script:DEFAULT_VM_NAME = "Windows Server 2025"
+$script:DEFAULT_DLL_PATH = "C:\path\to\hvlibdotnet.dll"
+$script:DEFAULT_VM_NAME = "VM Name"
 
 # Display Usage Information
 function Show-UsageHelp {

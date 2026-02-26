@@ -10,7 +10,7 @@
 
 # Module Settings
 $script:MODULE_NAME = 'Hvlib'
-$script:MODULE_VERSION = '1.5.0'
+$script:MODULE_VERSION = '1.4.0'
 
 # Memory Constants
 $script:PAGE_SIZE = 0x1000

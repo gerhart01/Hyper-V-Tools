@@ -1098,6 +1098,12 @@ function Get-HvlibSymbolAddress {
         $symbolName = $SymbolFullName
     }
 
+    # Resolve module name aliases (WinDbg conventions)
+    $moduleAliases = @{ 'nt' = 'ntoskrnl' }
+    if ($moduleAliases.ContainsKey($moduleName)) {
+        $moduleName = $moduleAliases[$moduleName]
+    }
+
     $symbols = [Hvlibdotnet.Hvlib]::GetAllSymbolsForModule([IntPtr]$PartitionHandle, $moduleName)
 
     if (-not $symbols -or $symbols.Count -eq 0) {
@@ -1115,6 +1121,62 @@ function Get-HvlibSymbolAddress {
     $address = [uint64]::Parse($match.Address.Replace("0x", ""), [System.Globalization.NumberStyles]::HexNumber)
     Write-Host "$SymbolFullName : 0x$($address.ToString('X'))" -ForegroundColor $Script:COLOR_SUCCESS
     return $address
+}
+
+function Get-HvlibSymbolAddressDirect {
+    <#
+    .SYNOPSIS
+    Get address of a symbol by name (direct SDK lookup, no full enumeration)
+    .DESCRIPTION
+    Resolves symbol address using "module!SymbolName" notation.
+    Uses SdkSymGetSymbolAddress for direct lookup without full symbol enumeration.
+    .PARAMETER PartitionHandle
+    Handle to the partition
+    .PARAMETER SymbolFullName
+    Symbol in "module!SymbolName" format (e.g., "winhv!WinHvAllocateOverlayPages")
+    or just "SymbolName" to search in ntoskrnl.
+    .EXAMPLE
+    $addr = Get-HvlibSymbolAddressDirect -PartitionHandle $handle -SymbolFullName "nt!MmCopyVirtualMemory"
+    Write-Host "Address: 0x$($addr.ToString('X'))"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [uint64]$PartitionHandle,
+
+        [Parameter(Mandatory, Position = 1)]
+        [ValidateNotNullOrEmpty()]
+        [string]$SymbolFullName
+    )
+
+    if (-not (Test-PartitionHandle -Handle $PartitionHandle)) { return [uint64]0 }
+
+    # Parse "module!SymbolName" format
+    $parts = $SymbolFullName.Split('!', 2)
+    if ($parts.Length -eq 2) {
+        $moduleName = $parts[0]
+        $symbolName = $parts[1]
+    } else {
+        $moduleName = 'ntoskrnl'
+        $symbolName = $SymbolFullName
+    }
+
+    # Common module name aliases (WinDbg convention)
+    $moduleAliases = @{
+        'nt'         = 'ntoskrnl'
+    }
+    if ($moduleAliases.ContainsKey($moduleName)) {
+        $moduleName = $moduleAliases[$moduleName]
+    }
+
+    # Direct lookup via SdkSymGetSymbolAddress2 (moduleName, symbolName)
+    $addr = [Hvlibdotnet.Hvlib]::GetSymbolAddress2($PartitionHandle, $moduleName, $symbolName)
+    if ($addr -ne 0) {
+        Write-Host "$SymbolFullName : 0x$($addr.ToString('X'))" -ForegroundColor $Script:COLOR_SUCCESS
+    } else {
+        Write-Warning "Symbol '$symbolName' not found in module '$moduleName'"
+    }
+    return $addr
 }
 
 # ==============================================================================
@@ -1232,8 +1294,9 @@ Export-ModuleMember -Function @(
     'Get-HvlibVpRegister',
     'Set-HvlibVpRegister',
 
-    # Symbol Operations (3) - NEW v1.4.0
+    # Symbol Operations (4) - NEW v1.4.0
     'Get-HvlibSymbolAddress',
+    'Get-HvlibSymbolAddressDirect',
     'Get-HvlibAllSymbols',
     'Get-HvlibSymbolTableLength',
 
@@ -1245,4 +1308,4 @@ Export-ModuleMember -Function @(
     'Get-HexValue'
 )
 
-# Total: 31 exported functions (28 original + 3 new v1.4.0)
+# Total: 32 exported functions (28 original + 4 new v1.4.0)

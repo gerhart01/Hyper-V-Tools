@@ -104,8 +104,9 @@
         'Get-HvlibVpRegister',
         'Set-HvlibVpRegister',
 
-        # Symbol Operations (3) - NEW in v1.4.0
+        # Symbol Operations (4) - NEW in v1.4.0
         'Get-HvlibSymbolAddress',
+        'Get-HvlibSymbolAddressDirect',
         'Get-HvlibAllSymbols',
         'Get-HvlibSymbolTableLength',
 

@@ -1,6 +1,6 @@
 # Hvlib PowerShell Module - Function Reference (beta version)
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/gerhart01/Hyper-V-Tools/tree/main/HvlibPowershell)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/gerhart01/Hyper-V-Tools/tree/main/HvlibPowershell)
 [![PowerShell](https://img.shields.io/badge/powershell-7.0+-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red.svg)](LICENSE)
 
@@ -62,6 +62,11 @@
     - [28. Close-HvlibPartition](#28-close-hvlibpartition)
     - [Utilities](#utilities)
     - [29. Get-HexValue](#29-get-hexvalue)
+    - [Symbol Operations (NEW v1.4.0)](#symbol-operations-new-v140)
+    - [30. Get-HvlibSymbolAddress](#30-get-hvlibsymboladdress)
+    - [31. Get-HvlibSymbolAddressDirect](#31-get-hvlibsymboladdressdirect)
+    - [32. Get-HvlibAllSymbols](#32-get-hvliballsymbols)
+    - [33. Get-HvlibSymbolTableLength](#33-get-hvlibsymboltablelength)
   - [Special Constants and Values](#special-constants-and-values)
     - [Special Process IDs](#special-process-ids)
     - [Memory Constants](#memory-constants)
@@ -90,7 +95,8 @@
   - [Troubleshooting](#troubleshooting)
     - [Common Issues](#common-issues)
   - [Version History](#version-history)
-    - [Version 1.3.0 (Current)](#version-130-current)
+    - [Version 1.4.0 (Current)](#version-140-current)
+    - [Version 1.3.0](#version-130)
     - [Version 1.2.0 (Major Feature Release)](#version-120-major-feature-release)
     - [Version 1.1.1 (Bug Fix Release)](#version-111-bug-fix-release)
     - [Version 1.1.0 (Refactored Release)](#version-110-refactored-release)
@@ -1052,6 +1058,130 @@ Write-Host "0x$hex"
 
 ---
 
+### Symbol Operations (NEW v1.4.0)
+
+Functions for resolving kernel and driver symbol names to virtual addresses using PDB symbol information. Requires symbol files to be available for the target modules.
+
+---
+
+### 30. Get-HvlibSymbolAddress
+
+Resolve a symbol address by name using full symbol enumeration. Enumerates all symbols for the specified module via `GetAllSymbolsForModule`, then filters by name. Slower than `Get-HvlibSymbolAddressDirect` but works without `SdkSymGetSymbolAddress2` support.
+
+Accepts WinDbg-style `"module!SymbolName"` format. The `nt` alias is automatically resolved to `ntoskrnl`.
+
+**Syntax:**
+```powershell
+Get-HvlibSymbolAddress [-PartitionHandle] <UInt64> [-SymbolFullName] <String>
+```
+
+**Parameters:**
+- **PartitionHandle** (UInt64, Mandatory): Active partition handle from `Get-HvlibPartition`
+- **SymbolFullName** (String, Mandatory): Symbol in `"module!SymbolName"` format (e.g., `"nt!MmCopyVirtualMemory"`, `"winhv!WinHvAllocateOverlayPages"`). If no module prefix, `ntoskrnl` is assumed.
+
+**Returns:** UInt64 — virtual address of the symbol, or 0 if not found
+
+**Example:**
+```powershell
+$handle = Get-HvlibPartition -VmName "Windows Server 2025"
+$addr = Get-HvlibSymbolAddress $handle "nt!MmCopyVirtualMemory"
+Write-Host "Address: 0x$($addr.ToString('X'))"
+Close-HvlibPartition -handle $handle
+```
+
+---
+
+### 31. Get-HvlibSymbolAddressDirect
+
+Resolve a symbol address by name using direct SDK lookup (`SdkSymGetSymbolAddress2`). Faster than `Get-HvlibSymbolAddress` because it does not enumerate the full symbol table. Accepts the same `"module!SymbolName"` format with `nt` → `ntoskrnl` alias support.
+
+**Syntax:**
+```powershell
+Get-HvlibSymbolAddressDirect [-PartitionHandle] <UInt64> [-SymbolFullName] <String>
+```
+
+**Parameters:**
+- **PartitionHandle** (UInt64, Mandatory): Active partition handle
+- **SymbolFullName** (String, Mandatory): Symbol in `"module!SymbolName"` format
+
+**Returns:** UInt64 — virtual address of the symbol, or 0 if not found
+
+**Example:**
+```powershell
+$handle = Get-HvlibPartition -VmName "Windows Server 2025"
+
+# Fast lookup of multiple symbols
+$symbols = @("nt!MmCopyVirtualMemory", "nt!PsGetProcessPeb", "winhv!WinHvAllocateOverlayPages")
+foreach ($sym in $symbols) {
+    $addr = Get-HvlibSymbolAddressDirect $handle $sym
+    Write-Host "$sym = 0x$($addr.ToString('X'))"
+}
+
+Close-HvlibPartition -handle $handle
+```
+
+---
+
+### 32. Get-HvlibAllSymbols
+
+Enumerate all symbols for a specified driver module. Returns a list of `SYMBOL_INFO_PWSH` objects with Name, Address, ModBase, and Size fields.
+
+**Syntax:**
+```powershell
+Get-HvlibAllSymbols [-PartitionHandle] <UInt64> [-DriverName] <String>
+```
+
+**Parameters:**
+- **PartitionHandle** (UInt64, Mandatory): Active partition handle
+- **DriverName** (String, Mandatory): Driver module name without extension (e.g., `"winhv"`, `"ntoskrnl"`, `"securekernel"`)
+
+**Returns:** `List<SYMBOL_INFO_PWSH>` — each entry has properties: `Name`, `Address`, `ModBase`, `Size`
+
+**Example:**
+```powershell
+$handle = Get-HvlibPartition -VmName "Windows Server 2025"
+$symbols = Get-HvlibAllSymbols $handle "winhv"
+
+Write-Host "Total: $($symbols.Count) symbols"
+$symbols | Select-Object -First 5 | ForEach-Object {
+    Write-Host "  $($_.Name) at $($_.Address)"
+}
+
+Close-HvlibPartition -handle $handle
+```
+
+---
+
+### 33. Get-HvlibSymbolTableLength
+
+Get the total number of symbols in a driver module's symbol table. Useful for checking if symbols are loaded and estimating enumeration time.
+
+**Syntax:**
+```powershell
+Get-HvlibSymbolTableLength [-PartitionHandle] <UInt64> [-DriverName] <String>
+```
+
+**Parameters:**
+- **PartitionHandle** (UInt64, Mandatory): Active partition handle
+- **DriverName** (String, Mandatory): Driver module name without extension
+
+**Returns:** Int32 — number of symbols, or 0 if module not found / no symbols loaded
+
+**Example:**
+```powershell
+$handle = Get-HvlibPartition -VmName "Windows Server 2025"
+
+$drivers = @('ntoskrnl', 'winhv', 'securekernel')
+foreach ($drv in $drivers) {
+    $count = Get-HvlibSymbolTableLength $handle $drv
+    Write-Host "$drv : $count symbols"
+}
+
+Close-HvlibPartition -handle $handle
+```
+
+---
+
 ## Special Constants and Values
 
 ### Special Process IDs
@@ -1800,7 +1930,25 @@ if ($data -and $data.Length -ge 8) {
 
 ## Version History
 
-### Version 1.3.0 (Current)
+### Version 1.4.0 (Current)
+**Release Date:** March 2026
+
+**New Functions (4):**
+- `Get-HvlibSymbolAddress` — Resolve symbol by name (full enumeration method)
+- `Get-HvlibSymbolAddressDirect` — Resolve symbol by name (direct SDK lookup, faster)
+- `Get-HvlibAllSymbols` — Enumerate all symbols in a driver module
+- `Get-HvlibSymbolTableLength` — Get symbol count for a driver module
+
+**Improvements:**
+- Module name alias support: `nt` → `ntoskrnl` (WinDbg convention)
+- Hvlib-Examples.ps1 v2.0.0: complete rewrite with self-contained examples and comment-based help
+
+**Statistics:**
+- Total: 32 exported functions (28 original + 4 new v1.4.0)
+
+---
+
+### Version 1.3.0
 **Release Date:** December 2025
 
 **Updates:**
@@ -1895,6 +2043,7 @@ if ($data -and $data.Length -ge 8) {
 
 ## License
 
+GPL3
 Copyright (c) All rights reserved  
 Author: Arthur Khudyaev (www.x.com/gerhart_x)
 
@@ -1906,5 +2055,5 @@ For bug reports, feature requests, or contributions, please visit the [GitHub re
 
 ---
 
-**Last Updated:** December 2025  
-**Module Version:** 1.3.0
+**Last Updated:** March 2026
+**Module Version:** 1.4.0

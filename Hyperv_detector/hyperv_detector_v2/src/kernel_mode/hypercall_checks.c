@@ -17,27 +17,39 @@
 //}
 
 NTSTATUS GetHyperVVersion(PDWORD version) {
-    int cpuInfo[4];
-    
+#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64)
+    int cpuInfo[4] = {0};
+
     if (!IsHyperVPresent()) {
         return STATUS_NOT_SUPPORTED;
     }
-    
+
     __cpuid(cpuInfo, 0x40000003);
     *version = cpuInfo[0];
-    
+
     return STATUS_SUCCESS;
+#else
+    *version = 0;
+    return STATUS_NOT_SUPPORTED;
+#endif
 }
 
 NTSTATUS ReadMsr(DWORD msrIndex, PULONGLONG value) {
+#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64)
     __try {
         *value = __readmsr(msrIndex);
         return STATUS_SUCCESS;
     }
+#pragma warning(suppress: 6320) /* intentional catch-all for MSR access faults */
     __except(EXCEPTION_EXECUTE_HANDLER) {
         KdPrint(("HyperV Detector: Failed to read MSR 0x%x\n", msrIndex));
         return STATUS_PRIVILEGE_NOT_HELD;
     }
+#else
+    UNREFERENCED_PARAMETER(msrIndex);
+    *value = 0;
+    return STATUS_NOT_SUPPORTED;
+#endif
 }
 
 NTSTATUS PerformHypercall(DWORD hypercallCode, DWORD inputParamCount, DWORD outputParamCount, PDWORD result) {
@@ -68,6 +80,7 @@ NTSTATUS PerformHypercall(DWORD hypercallCode, DWORD inputParamCount, DWORD outp
                      ((ULONGLONG)inputParamCount << 32) |
                      ((ULONGLONG)outputParamCount << 48);
     
+#pragma warning(suppress: 6320) /* intentional catch-all for hypercall faults */
     __try {
         // Perform the hypercall
         // Note: This is a simplified version. Real hypercalls require proper setup
@@ -112,13 +125,13 @@ NTSTATUS CheckVmBusPresence(PDWORD result) {
     
     *result = 0;
     
-    // Try to get VMBus device object
+    // Try to get VMBus device object (guest partition)
     RtlInitUnicodeString(&deviceName, L"\\Device\\VmBus");
     
     status = IoGetDeviceObjectPointer(&deviceName, FILE_READ_DATA, &fileObject, &deviceObject);
     if (NT_SUCCESS(status)) {
-        *result = 1;
-        KdPrint(("HyperV Detector: VMBus device found\n"));
+        *result = 1;  // VMBus found = guest partition
+        KdPrint(("HyperV Detector: VMBus device found (guest partition)\n"));
         
         if (fileObject) {
             ObDereferenceObject(fileObject);
@@ -128,5 +141,73 @@ NTSTATUS CheckVmBusPresence(PDWORD result) {
     }
     
     KdPrint(("HyperV Detector: VMBus device not found (0x%x)\n", status));
+    return STATUS_NOT_FOUND;
+}
+
+/*
+ * Check for VMBusr (VMBus Root) presence
+ * VMBusr exists only in root partition (Hyper-V host)
+ * VMBus exists in guest partitions (VMs)
+ * 
+ * This is a reliable indicator for root vs guest partition
+ */
+NTSTATUS CheckVmBusRootPresence(PDWORD result) {
+    UNICODE_STRING deviceName;
+    PDEVICE_OBJECT deviceObject = NULL;
+    PFILE_OBJECT fileObject = NULL;
+    NTSTATUS status;
+    
+    *result = 0;
+    
+    // Try to get VMBusr (VMBus Root) device object - root partition only
+    RtlInitUnicodeString(&deviceName, L"\\Device\\VmBusr");
+    
+    status = IoGetDeviceObjectPointer(&deviceName, FILE_READ_DATA, &fileObject, &deviceObject);
+    if (NT_SUCCESS(status)) {
+        *result = 1;  // VMBusr found = root partition
+        KdPrint(("HyperV Detector: VMBusr device found (ROOT PARTITION)\n"));
+        
+        if (fileObject) {
+            ObDereferenceObject(fileObject);
+        }
+        
+        return STATUS_SUCCESS;
+    }
+    
+    KdPrint(("HyperV Detector: VMBusr device not found (0x%x) - likely guest partition\n", status));
+    return STATUS_NOT_FOUND;
+}
+
+/*
+ * Comprehensive partition type detection via VMBus devices
+ * Returns:
+ *   0 = No Hyper-V (bare metal or other hypervisor)
+ *   1 = Guest partition (VMBus present, VMBusr absent)
+ *   2 = Root partition (VMBusr present)
+ */
+NTSTATUS DetectPartitionType(PDWORD partitionType) {
+    DWORD vmBusResult = 0;
+    DWORD vmBusrResult = 0;
+    
+    *partitionType = 0;
+    
+    // Check for VMBusr first (root partition indicator)
+    CheckVmBusRootPresence(&vmBusrResult);
+    if (vmBusrResult) {
+        *partitionType = 2;  // Root partition
+        KdPrint(("HyperV Detector: Detected ROOT PARTITION (VMBusr present)\n"));
+        return STATUS_SUCCESS;
+    }
+    
+    // Check for VMBus (guest partition indicator)
+    CheckVmBusPresence(&vmBusResult);
+    if (vmBusResult) {
+        *partitionType = 1;  // Guest partition
+        KdPrint(("HyperV Detector: Detected GUEST PARTITION (VMBus present, VMBusr absent)\n"));
+        return STATUS_SUCCESS;
+    }
+    
+    // Neither found - bare metal or non-Hyper-V
+    KdPrint(("HyperV Detector: No VMBus devices found - bare metal or other hypervisor\n"));
     return STATUS_NOT_FOUND;
 }

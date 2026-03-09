@@ -27,11 +27,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>16.0</VCProjectVersion>
+    <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
-    <RootNamespace>hypervdetector</RootNamespace>
+    <ProjectGuid>{B2C3D4E5-F6A7-8901-BCDE-F12345678901}</ProjectGuid>
+    <RootNamespace>hyperv_detector_tests</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>hyperv_detector_tests</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -97,32 +98,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
-  <!-- Debug|Win32 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,7 +112,6 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Release|Win32 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -139,7 +120,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,14 +130,13 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Debug|x64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -164,7 +144,6 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Release|x64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -173,7 +152,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -183,14 +162,13 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Debug|ARM64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -198,7 +176,6 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Release|ARM64 -->
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -207,7 +184,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>src\common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\common;$(ProjectDir)src\user_mode;$(ProjectDir)src\tests;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -217,26 +194,16 @@
       <AdditionalDependencies>setupapi.lib;version.lib;advapi32.lib;psapi.lib;ole32.lib;oleaut32.lib;wbemuuid.lib;pdh.lib;wevtapi.lib;iphlpapi.lib;ws2_32.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <!-- Header Files -->
   <ItemGroup>
-    <ClInclude Include="src\common\common.h" />
-    <ClInclude Include="src\common\shared_structs.h" />
-    <ClInclude Include="src\user_mode\hyperv_detector.h" />
-    <ClInclude Include="src\user_mode\hyperv_detector_new.h" />
-  </ItemGroup>
-  <!-- Source Files -->
-  <ItemGroup>
-    <!-- Original modules -->
-    <ClCompile Include="src\user_mode\bios_checks.c" />
-    <ClCompile Include="src\user_mode\cpuid_checks.c" />
+    <ClCompile Include="src\tests\test_main.c" />
     <ClCompile Include="src\user_mode\utils.c" />
-    <ClCompile Include="src\user_mode\device_checks.c" />
-    <ClCompile Include="src\user_mode\file_checks.c" />
-    <ClCompile Include="src\user_mode\main.c" />
-    <ClCompile Include="src\user_mode\process_checks.c" />
+    <ClCompile Include="src\user_mode\cpuid_checks.c" />
     <ClCompile Include="src\user_mode\registry_checks.c" />
     <ClCompile Include="src\user_mode\service_checks.c" />
-    <!-- New detection modules -->
+    <ClCompile Include="src\user_mode\device_checks.c" />
+    <ClCompile Include="src\user_mode\file_checks.c" />
+    <ClCompile Include="src\user_mode\process_checks.c" />
+    <ClCompile Include="src\user_mode\bios_checks.c" />
     <ClCompile Include="src\user_mode\wmi_checks.c" />
     <ClCompile Include="src\user_mode\mac_checks.c" />
     <ClCompile Include="src\user_mode\firmware_checks.c" />
@@ -245,11 +212,11 @@
     <ClCompile Include="src\user_mode\eventlog_checks.c" />
     <ClCompile Include="src\user_mode\security_checks.c" />
     <ClCompile Include="src\user_mode\descriptor_checks.c" />
-    <ClCompile Include="src\user_mode\features_checks.c" />
-    <ClCompile Include="src\user_mode\storage_checks.c" />
     <ClCompile Include="src\user_mode\env_checks.c" />
     <ClCompile Include="src\user_mode\network_checks.c" />
     <ClCompile Include="src\user_mode\dll_checks.c" />
+    <ClCompile Include="src\user_mode\storage_checks.c" />
+    <ClCompile Include="src\user_mode\features_checks.c" />
     <ClCompile Include="src\user_mode\root_partition_checks.c" />
     <ClCompile Include="src\user_mode\integration_services_checks.c" />
     <ClCompile Include="src\user_mode\msr_checks.c" />
@@ -285,7 +252,12 @@
     <ClCompile Include="src\user_mode\exo_partition_checks.c" />
     <ClCompile Include="src\user_mode\hv_debugging_checks.c" />
     <ClCompile Include="src\user_mode\vmcs_ept_checks.c" />
-    <ClCompile Include="src\user_mode\driver_loader.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\common\common.h" />
+    <ClInclude Include="src\common\shared_structs.h" />
+    <ClInclude Include="src\user_mode\hyperv_detector.h" />
+    <ClInclude Include="src\tests\test_framework.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

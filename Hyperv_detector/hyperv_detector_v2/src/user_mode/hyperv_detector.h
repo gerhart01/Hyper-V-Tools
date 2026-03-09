@@ -4,6 +4,7 @@
 
 #include "../common/common.h"
 #include "../common/shared_structs.h"
+#include "driver_loader.h"
 
 // Function declarations
 DWORD CheckCpuidHyperV(PDETECTION_RESULT result);

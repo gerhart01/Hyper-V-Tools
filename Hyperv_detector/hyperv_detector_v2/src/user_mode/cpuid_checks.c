@@ -1,18 +1,27 @@
 #include "hyperv_detector.h"
 
 void ExecuteCpuid(DWORD function, PCPUID_RESULT result) {
+#if ARCH_X86_OR_X64
     int cpuInfo[4];
     __cpuid(cpuInfo, function);
     result->eax = cpuInfo[0];
     result->ebx = cpuInfo[1];
     result->ecx = cpuInfo[2];
     result->edx = cpuInfo[3];
+#else
+    memset(result, 0, sizeof(*result));
+#endif
 }
 
 DWORD CheckCpuidHyperV(PDETECTION_RESULT result) {
     CPUID_RESULT cpuid_result;
     DWORD detected = 0;
-    
+
+#if !ARCH_X86_OR_X64
+    AppendToDetails(result, "CPUID: Not available on ARM64 architecture\n");
+    return 0;
+#endif
+
     // Check for hypervisor presence
     ExecuteCpuid(1, &cpuid_result);
     if (cpuid_result.ecx & (1 << 31)) {

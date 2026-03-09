@@ -81,7 +81,6 @@ DWORD CheckFilesHyperV(PDETECTION_RESULT result) {
     }
     
     // Check for Virtual Machine files in common locations
-    char searchPath[MAX_PATH];
     const char* vmPaths[] = {
         "C:\\ProgramData\\Microsoft\\Windows\\Hyper-V\\Virtual Machines\\*.vmcx",
         "C:\\Users\\Public\\Documents\\Hyper-V\\Virtual hard disks\\*.vhdx",

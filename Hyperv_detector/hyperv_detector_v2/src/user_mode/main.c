@@ -1,35 +1,8 @@
 #include "hyperv_detector.h"
 #include <stdio.h>
 
-void AppendToDetails(PDETECTION_RESULT result, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    
-    int currentLen = strlen(result->Details);
-    int remaining = sizeof(result->Details) - currentLen - 1;
-    
-    if (remaining > 0) {
-        vsnprintf(result->Details + currentLen, remaining, format, args);
-    }
-    
-    va_end(args);
-}
 
-BOOL IsRunningAsAdmin() {
-    BOOL isAdmin = FALSE;
-    PSID adminGroup = NULL;
-    SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
-    
-    if (AllocateAndInitializeSid(&ntAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
-                                DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &adminGroup)) {
-        if (!CheckTokenMembership(NULL, adminGroup, &isAdmin)) {
-            isAdmin = FALSE;
-        }
-        FreeSid(adminGroup);
-    }
-    
-    return isAdmin;
-}
+/* AppendToDetails and IsRunningAsAdmin are now in utils.c */
 
 DWORD CheckWindowsObjectsHyperV(PDETECTION_RESULT result) {
     DWORD detected = 0;
@@ -169,14 +142,16 @@ DWORD CheckDockerHyperV(PDETECTION_RESULT result) {
     // Check for Docker processes
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnapshot != INVALID_HANDLE_VALUE) {
-        PROCESSENTRY32 pe32;
-        pe32.dwSize = sizeof(PROCESSENTRY32);
+        PROCESSENTRY32W pe32;
+        pe32.dwSize = sizeof(PROCESSENTRY32W);
+        char exeNameA[MAX_PATH];
         
         if (Process32FirstW(hSnapshot, &pe32)) {
             do {
-                if (strstr(pe32.szExeFile, "docker") || strstr(pe32.szExeFile, "containerR")) {
+                WideCharToMultiByte(CP_ACP, 0, pe32.szExeFile, -1, exeNameA, sizeof(exeNameA), NULL, NULL);
+                if (strstr(exeNameA, "docker") || strstr(exeNameA, "containerR")) {
                     detected |= HYPERV_DETECTED_DOCKER;
-                    AppendToDetails(result, "Docker: Found Docker process: %s\n", pe32.szExeFile);
+                    AppendToDetails(result, "Docker: Found Docker process: %s\n", exeNameA);
                 }
             } while (Process32NextW(hSnapshot, &pe32));
         }
@@ -301,29 +276,47 @@ int main(int argc, char* argv[]) {
     printf("\n=== DETAILED OUTPUT ===\n");
     printf("%s\n", result.Details);
     
-    // Try to communicate with kernel driver for additional checks
-    HANDLE hDriver = CreateFileA("\\\\.\\HyperVDetector", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-    if (hDriver != INVALID_HANDLE_VALUE) {
-        printf("\n=== KERNEL MODE CHECKS ===\n");
-        
-        // Perform hypercall checks through driver
-        HYPERCALL_INPUT hypercallInput = {0};
-        HYPERCALL_OUTPUT hypercallOutput = {0};
-        DWORD bytesReturned;
-        
-        hypercallInput.HypercallCode = HVCALL_GET_PARTITION_ID;
-        if (DeviceIoControl(hDriver, IOCTL_HYPERV_CHECK_HYPERCALL, &hypercallInput, sizeof(hypercallInput),
-                           &hypercallOutput, sizeof(hypercallOutput), &bytesReturned, NULL)) {
-            if (hypercallOutput.Result == 0) {
-                printf("Kernel: Hypercall successful - Partition ID: %d\n", hypercallOutput.OutputValue);
-                totalFlags |= HYPERV_DETECTED_HYPERCALLS;
+    // Automatically load the kernel driver, run kernel-mode checks, then unload it.
+    printf("Loading kernel driver...\n");
+    DRIVER_LOAD_STATUS driverStatus = LoadDriver();
+
+    if (driverStatus == DRIVER_STATUS_LOADED || driverStatus == DRIVER_STATUS_ALREADY_LOADED) {
+        HANDLE hDriver = CreateFileA("\\\\.\\HyperVDetector",
+                                     GENERIC_READ | GENERIC_WRITE,
+                                     0, NULL, OPEN_EXISTING, 0, NULL);
+        if (hDriver != INVALID_HANDLE_VALUE) {
+            printf("\n=== KERNEL MODE CHECKS ===\n");
+
+            HYPERCALL_INPUT  hypercallInput  = {0};
+            HYPERCALL_OUTPUT hypercallOutput = {0};
+            DWORD bytesReturned;
+
+            hypercallInput.HypercallCode = HVCALL_GET_PARTITION_ID;
+            if (DeviceIoControl(hDriver, IOCTL_HYPERV_CHECK_HYPERCALL,
+                                &hypercallInput,  sizeof(hypercallInput),
+                                &hypercallOutput, sizeof(hypercallOutput),
+                                &bytesReturned, NULL)) {
+                if (hypercallOutput.Result == 0) {
+                    printf("Kernel: Hypercall successful - Partition ID: %d\n",
+                           hypercallOutput.OutputValue);
+                    totalFlags |= HYPERV_DETECTED_HYPERCALLS;
+                } else {
+                    printf("Kernel: Hypercall returned error result: %u\n",
+                           hypercallOutput.Result);
+                }
+            } else {
+                fprintf(stderr, "[driver] DeviceIoControl failed: %lu\n", GetLastError());
             }
+
+            CloseHandle(hDriver);
+        } else {
+            fprintf(stderr, "[driver] Failed to open device: %lu\n", GetLastError());
         }
-        
-        CloseHandle(hDriver);
+
+        if (driverStatus == DRIVER_STATUS_LOADED)
+            UnloadDriver();
     } else {
         printf("\nKernel driver not loaded. Skipping kernel mode checks.\n");
-        printf("To enable kernel mode checks, run: sc create HyperVDetector binPath= hyperv_driver.sys type= kernel\n");
     }
     
     if (argc > 1 && strcmp(argv[1], "--json") == 0) {

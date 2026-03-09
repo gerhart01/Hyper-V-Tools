@@ -1,130 +1,211 @@
-AI generated with modifications
+# Hyper-V Detector
 
-# Hyper-V Virtual Machine Detector
+Комплексный инструмент для обнаружения виртуализации Microsoft Hyper-V в Windows.
 
-A comprehensive Windows tool for detecting if the system is running inside a Hyper-V virtual machine. This project includes both user-mode and kernel-mode components for thorough detection.
+## Структура проекта
 
-## Features
-
-### User-Mode Detection Methods
-- **CPUID Instructions**: Checks hypervisor presence and vendor information
-- **Registry Keys**: Scans for Hyper-V specific registry entries
-- **Files**: Looks for Hyper-V related system files and drivers
-- **Services**: Detects running Hyper-V integration services
-- **Drivers**: Enumerates loaded Hyper-V drivers
-- **Devices**: Checks for VMBus and synthetic devices
-- **BIOS/UEFI**: Examines SMBIOS data for virtualization indicators
-- **ACPI Tables**: Analyzes ACPI tables for Hyper-V signatures
-- **Windows Objects**: Searches for Hyper-V mutexes, devices, and kernel objects
-- **Enlightenments**: Detects Hyper-V performance optimizations
-
-### Special Environment Detection
-- Nested Hyper-V virtualization
-- Root partition with active Hyper-V
-- Windows Sandbox
-- Docker containers with Hyper-V
-- Removed Hyper-V traces
-
-### Kernel-Mode Detection (Optional)
-- Hypercall availability
-- MSR (Model Specific Register) access
-- Advanced nested virtualization checks
-
-## Building
-
-### Prerequisites
-- Visual Studio 2019 or later
-- Windows SDK
-- Windows Driver Kit (WDK) for kernel driver
-
-### User-Mode Application
-```cmd
-cd hyperv_detector
-nmake
+```
+hyperv_detector/
+├── hyperv_detector.sln          # Solution файл Visual Studio
+├── hyperv_detector.vcxproj      # Проект UserMode приложения
+├── hyperv_driver.vcxproj        # Проект KernelMode драйвера
+├── src/
+│   ├── common/                  # Общие заголовки
+│   │   ├── common.h
+│   │   └── shared_structs.h
+│   ├── user_mode/               # UserMode код (25 методов детекции)
+│   │   ├── hyperv_detector.h
+│   │   ├── hyperv_detector_new.h
+│   │   ├── main.c               # Оригинальный main
+│   │   ├── main_new.c           # Расширенный main с уровнями детекции
+│   │   ├── bios_checks.c
+│   │   ├── cpuid_checks.c
+│   │   ├── device_checks.c
+│   │   ├── file_checks.c
+│   │   ├── process_checks.c
+│   │   ├── registry_checks.c
+│   │   ├── service_checks.c
+│   │   ├── wmi_checks.c         # NEW: WMI проверки
+│   │   ├── mac_checks.c         # NEW: MAC-адреса
+│   │   ├── firmware_checks.c    # NEW: SMBIOS/ACPI
+│   │   ├── timing_checks.c      # NEW: Анализ тайминга
+│   │   ├── perfcounter_checks.c # NEW: Счётчики производительности
+│   │   ├── eventlog_checks.c    # NEW: Журналы событий
+│   │   ├── security_checks.c    # NEW: VBS/HVCI/Credential Guard
+│   │   ├── descriptor_checks.c  # NEW: IDT/GDT анализ
+│   │   ├── features_checks.c    # NEW: Компоненты Windows
+│   │   ├── storage_checks.c     # NEW: Анализ дисков
+│   │   ├── env_checks.c         # NEW: Переменные окружения
+│   │   ├── network_checks.c     # NEW: Сетевая топология
+│   │   ├── dll_checks.c         # NEW: DLL анализ
+│   │   └── root_partition_checks.c # NEW: Root/Child partition
+│   └── kernel_mode/             # KernelMode драйвер
+│       ├── hyperv_driver.h
+│       ├── hyperv_driver.c
+│       ├── hypercall_checks.c
+│       ├── hypercall_perform.c
+│       └── ASM64.asm
 ```
 
-Or open `hyperv_detector.sln` in Visual Studio and build.
+## Флаги обнаружения
 
-### Kernel Driver
-1. Install Windows Driver Kit (WDK)
-2. Open `hyperv_detector_driver` project in Visual Studio
-3. Build for desired architecture (x64/x86)
+| Флаг | Значение | Метод |
+|------|----------|-------|
+| HYPERV_DETECTED_CPUID | 0x00000001 | CPUID |
+| HYPERV_DETECTED_REGISTRY | 0x00000002 | Реестр |
+| HYPERV_DETECTED_FILES | 0x00000004 | Файлы |
+| HYPERV_DETECTED_SERVICES | 0x00000008 | Службы |
+| HYPERV_DETECTED_DEVICES | 0x00000010 | Устройства |
+| HYPERV_DETECTED_BIOS | 0x00000020 | BIOS |
+| HYPERV_DETECTED_PROCESSES | 0x00000040 | Процессы |
+| HYPERV_DETECTED_HYPERCALL | 0x00000080 | Hypercall |
+| HYPERV_DETECTED_OBJECTS | 0x00000100 | Объекты Windows |
+| HYPERV_DETECTED_NESTED | 0x00000200 | Вложенная виртуализация |
+| HYPERV_DETECTED_SANDBOX | 0x00000400 | Windows Sandbox |
+| HYPERV_DETECTED_DOCKER | 0x00000800 | Docker/Контейнеры |
+| HYPERV_DETECTED_REMOVED | 0x00001000 | Остатки удалённого Hyper-V |
+| HYPERV_DETECTED_WMI | 0x00002000 | WMI |
+| HYPERV_DETECTED_MAC | 0x00004000 | MAC-адреса |
+| HYPERV_DETECTED_FIRMWARE | 0x00008000 | Firmware/SMBIOS |
+| HYPERV_DETECTED_TIMING | 0x00010000 | Анализ тайминга |
+| HYPERV_DETECTED_PERFCOUNTER | 0x00020000 | Счётчики производительности |
+| HYPERV_DETECTED_EVENTLOG | 0x00040000 | Журналы событий |
+| HYPERV_DETECTED_SECURITY | 0x00080000 | Функции безопасности |
+| HYPERV_DETECTED_DESCRIPTOR | 0x00100000 | Дескрипторные таблицы |
+| HYPERV_DETECTED_FEATURES | 0x00200000 | Компоненты Windows |
+| HYPERV_DETECTED_STORAGE | 0x00400000 | Хранилище |
+| HYPERV_DETECTED_ENV | 0x00800000 | Окружение |
+| HYPERV_DETECTED_NETWORK | 0x01000000 | Сеть |
+| HYPERV_DETECTED_DLL | 0x02000000 | DLL-библиотеки |
+| HYPERV_DETECTED_ROOT_PART | 0x04000000 | Root Partition |
 
-## Usage
+## Root Partition Detection
 
-### Basic Usage
-```cmd
-hyperv_detector.exe
+Особая функция для определения типа раздела Hyper-V:
+- **Root Partition** - хост с включённым Hyper-V/VBS (без виртуализации самого хоста)
+- **Child Partition** - гостевая виртуальная машина
+
+### Методы определения Root Partition
+
+1. **CPUID 0x40000003 (HV_PARTITION_PRIVILEGE_MASK)**
+   - EBX bit 0: CreatePartitions - только root partition
+   - EBX bit 12: CpuManagement - только root partition
+
+2. **CPUID 0x40000007 (CPU Management Features)**
+   - EAX bit 31: ReservedIdentityBit - индикатор root partition
+
+3. **Performance Counters**
+   - "Hyper-V Hypervisor Root Virtual Processor" - существует только на root
+
+4. **WMI System Model**
+   - Guest VM: "Virtual Machine"
+   - Root partition: реальная модель оборудования
+
+5. **VMBus vs VMBusr**
+   - `vmbus.sys` / `\Device\VmBus` - присутствует в guest VM
+   - `vmbusr.sys` / `\Device\VmBusr` - присутствует только в root partition
+   - Это надёжный индикатор: VMBusr = root, VMBus без VMBusr = guest
+
+### Hypercalls только для Root Partition
+
+| Код | Hypercall | Привилегия |
+|-----|-----------|------------|
+| 0x0040 | HvCallCreatePartition | CreatePartitions |
+| 0x0041 | HvCallInitializePartition | CreatePartitions |
+| 0x0048 | HvCallDepositMemory | AccessMemoryPool |
+| 0x005E | HvCallCreateVp | CpuManagement |
+| 0x0099 | HvCallStartVirtualProcessor | CpuManagement |
+
+Child partition получает `HV_STATUS_ACCESS_DENIED (0x0006)` при попытке вызова.
+
+## Добавленные библиотеки
+
+Для новых модулей требуются дополнительные библиотеки:
+- `ole32.lib` - COM инициализация
+- `oleaut32.lib` - OLE Automation
+- `wbemuuid.lib` - WMI
+- `pdh.lib` - Performance Data Helper
+- `wevtapi.lib` - Windows Event Log API
+- `iphlpapi.lib` - IP Helper API
+- `ws2_32.lib` - Winsock
+- `ntdll.lib` - NT API (для NtQuerySystemInformation)
+
+## Сборка
+
+1. Откройте `hyperv_detector.sln` в Visual Studio 2022
+2. Выберите конфигурацию (Debug/Release) и платформу (x64)
+3. Соберите solution (Ctrl+Shift+B)
+
+Для сборки драйвера требуется Windows Driver Kit (WDK).
+
+## Использование
+
+```
+hyperv_detector.exe [опции]
+
+Опции:
+  --fast      Быстрая проверка (CPUID, реестр, файлы)
+  --thorough  Тщательная проверка
+  --full      Полная проверка (включая timing и descriptor)
+  --json      Вывод в формате JSON
+  --quiet     Минимальный вывод
+  --details   Подробный вывод
 ```
 
-### With Kernel-Mode Checks (Administrator Required)
-```cmd
-hyperv_detector.exe -k
+## Примечания
+
+- Для использования main_new.c замените main.c в проекте
+- Права администратора рекомендуются для полной функциональности
+- Архитектура x64 требуется для descriptor_checks и timing_checks
+
+## Тестовый проект
+
+Solution включает проект `hyperv_detector_tests` для проверки каждого метода детекции на различных конфигурациях.
+
+### Запуск тестов
+
+```
+hyperv_detector_tests.exe [опции]
+
+Опции:
+  --json           Вывод в формате JSON
+  --config <имя>   Название конфигурации для отчёта
+  --help           Справка
 ```
 
-### Verbose Output
-```cmd
-hyperv_detector.exe -v
+### Примеры
+
+```bash
+# Запуск на гостевой VM
+hyperv_detector_tests.exe --config "VM-Windows11"
+
+# JSON вывод для автоматизации
+hyperv_detector_tests.exe --json --config "HyperV-Host"
 ```
 
-### Command Line Options
-- `-k, --kernel`: Include kernel-mode detection methods
-- `-v, --verbose`: Enable verbose output
-- `-h, --help`: Show help message
+### Категории тестов
 
-## Output
+| Категория | Описание |
+|-----------|----------|
+| CPUID | Проверка CPUID листов гипервизора |
+| Registry | Ключи реестра Hyper-V |
+| Services | Сервисы Hyper-V |
+| Devices | Устройства Hyper-V |
+| Files | Файлы драйверов (vmbus.sys, vmbusr.sys) |
+| Processes | Процессы Hyper-V |
+| WMI | WMI запросы |
+| MAC | MAC-адреса виртуальных адаптеров |
+| PerfCounter | Счётчики производительности |
+| RootPartition | Определение root/guest partition |
 
-The tool provides detailed information about:
-- Detection status (Hyper-V detected/not detected)
-- Detection methods that triggered
-- Hypervisor vendor information
-- Version details
-- Specific environment type (VM, Sandbox, Docker, etc.)
+### Авто-определение конфигурации
 
-## Detection Methods Details
+Тесты автоматически определяют тип системы:
+- `BareMetal` - нет гипервизора
+- `HyperV-RootPartition` - хост Hyper-V
+- `HyperV-GuestVM` - гостевая VM
+- `OtherHypervisor-<vendor>` - другой гипервизор
 
-### CPUID Detection
-- Checks CPUID leaf 1, ECX bit 31 for hypervisor presence
-- Reads hypervisor vendor signature from CPUID 0x40000000
-- Verifies Hyper-V interface signature "Hv#1"
-- Extracts version and feature information
+## Лицензия
 
-### Registry Detection
-- Scans HKLM\SOFTWARE\Microsoft\Hyper-V
-- Checks for integration services in CurrentControlSet\Services
-- Examines BIOS information in HARDWARE\DESCRIPTION\System
-- Looks for VMBus enumeration in SYSTEM\CurrentControlSet\Enum
-
-### File System Detection
-- Checks for vmms.exe, vmwp.exe, and other Hyper-V executables
-- Looks for VMBus and integration service drivers
-- Searches for Hyper-V configuration directories
-
-### Device Detection
-- Enumerates devices with "VMBUS" hardware IDs
-- Checks for synthetic network, storage, and display adapters
-- Looks for Hyper-V Generation Counter device
-
-## Security Considerations
-
-- The kernel driver requires administrator privileges
-- Some detection methods may be blocked by security software
-- Results should be used for legitimate purposes only
-
-## Limitations
-
-- Some detection methods may have false positives in certain configurations
-- Kernel driver must be signed for use on 64-bit Windows
-- Detection can be evaded by sophisticated hypervisor hiding techniques
-
-## License
-
-GPL3
-
-## Contributing
-
-Contributions are welcome! Please submit pull requests with:
-- New detection methods
-- Bug fixes
-- Performance improvements
-- Documentation updates
+Свободное использование

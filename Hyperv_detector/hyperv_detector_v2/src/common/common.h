@@ -2,14 +2,43 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+/* Prevent winsock.h inclusion - use winsock2.h instead */
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifndef _WINSOCK2API_
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #include <windows.h>
+#include <winioctl.h>
 #include <winternl.h>
 #include <tlhelp32.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <intrin.h>
 
+/* Architecture detection */
+#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64)
+#define ARCH_X86_OR_X64 1
+#include <intrin.h>
+#else
+#define ARCH_X86_OR_X64 0
+/* Provide stub intrinsics so x86-specific detection code compiles on ARM64.
+   All stubs return zeroes, making detection functions report "not detected". */
+static __inline void __cpuid(int cpuInfo[4], int function) {
+    (void)function;
+    cpuInfo[0] = cpuInfo[1] = cpuInfo[2] = cpuInfo[3] = 0;
+}
+static __inline void __cpuidex(int cpuInfo[4], int function, int subLeaf) {
+    (void)function; (void)subLeaf;
+    cpuInfo[0] = cpuInfo[1] = cpuInfo[2] = cpuInfo[3] = 0;
+}
+static __inline unsigned __int64 __rdtsc(void) { return 0; }
+static __inline unsigned __int64 __rdtscp(unsigned int *aux) { if (aux) *aux = 0; return 0; }
+#endif
 
 // Detection result flags
 #define HYPERV_DETECTED_NONE        0x00000000

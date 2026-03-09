@@ -20,8 +20,9 @@ static const char* HYPERV_PROCESSES[] = {
 
 DWORD CheckProcessesHyperV(PDETECTION_RESULT result) {
     HANDLE hSnapshot;
-    PROCESSENTRY32 pe32;
+    PROCESSENTRY32W pe32;
     DWORD detected = 0;
+    char exeFileA[MAX_PATH];
     
     hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnapshot == INVALID_HANDLE_VALUE) {
@@ -29,16 +30,18 @@ DWORD CheckProcessesHyperV(PDETECTION_RESULT result) {
         return 0;
     }
     
-    pe32.dwSize = sizeof(PROCESSENTRY32);
+    pe32.dwSize = sizeof(PROCESSENTRY32W);
     
     if (Process32FirstW(hSnapshot, &pe32)) {
         do {
+            // Convert wide string to ANSI
+            WideCharToMultiByte(CP_ACP, 0, pe32.szExeFile, -1, exeFileA, sizeof(exeFileA), NULL, NULL);
             // Check against known Hyper-V processes
             for (int i = 0; HYPERV_PROCESSES[i] != NULL; i++) {
-                if (_stricmp(pe32.szExeFile, HYPERV_PROCESSES[i]) == 0) {
+                if (_stricmp(exeFileA, HYPERV_PROCESSES[i]) == 0) {
                     detected |= HYPERV_DETECTED_PROCESSES;
                     AppendToDetails(result, "Process: Found %s (PID: %d, PPID: %d)\n", 
-                                   pe32.szExeFile, pe32.th32ProcessID, pe32.th32ParentProcessID);
+                                   exeFileA, pe32.th32ProcessID, pe32.th32ParentProcessID);
                     
                     // Get additional process information
                     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 
@@ -46,13 +49,13 @@ DWORD CheckProcessesHyperV(PDETECTION_RESULT result) {
                     if (hProcess != NULL) {
                         char modulePath[MAX_PATH];
                         if (GetModuleFileNameExA(hProcess, NULL, modulePath, sizeof(modulePath))) {
-                            AppendToDetails(result, "Process: %s path: %s\n", pe32.szExeFile, modulePath);
+                            AppendToDetails(result, "Process: %s path: %s\n", exeFileA, modulePath);
                         }
                         
                         PROCESS_MEMORY_COUNTERS_EX memCounters;
                         if (GetProcessMemoryInfo(hProcess, (PROCESS_MEMORY_COUNTERS*)&memCounters, sizeof(memCounters))) {
                             AppendToDetails(result, "Process: %s memory usage: %lu KB\n", 
-                                           pe32.szExeFile, memCounters.WorkingSetSize / 1024);
+                                           exeFileA, memCounters.WorkingSetSize / 1024);
                         }
                         
                         CloseHandle(hProcess);
@@ -62,11 +65,11 @@ DWORD CheckProcessesHyperV(PDETECTION_RESULT result) {
             }
             
             // Check for processes with Hyper-V related strings in their name
-            if (strstr(pe32.szExeFile, "hyper") || strstr(pe32.szExeFile, "vm") || 
-                strstr(pe32.szExeFile, "virtual") || strstr(pe32.szExeFile, "sandbox")) {
+            if (strstr(exeFileA, "hyper") || strstr(exeFileA, "vm") || 
+                strstr(exeFileA, "virtual") || strstr(exeFileA, "sandbox")) {
                 detected |= HYPERV_DETECTED_PROCESSES;
                 AppendToDetails(result, "Process: Found virtualization-related process: %s (PID: %d)\n", 
-                               pe32.szExeFile, pe32.th32ProcessID);
+                               exeFileA, pe32.th32ProcessID);
             }
             
         } while (Process32NextW(hSnapshot, &pe32));

@@ -1,71 +1,68 @@
+;
+; hyperv_driver.inf
+;
+; Hyper-V Detection Driver Installation File
+;
+
 [Version]
-Signature="$WINDOWS NT$"
-Class=System
-ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
-Provider=%ManufacturerName%
-CatalogFile=hyperv_driver.cat
-DriverVer=01/01/2025,1.0.0.0
-PnpLockdown=1
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider    = %ProviderString%
+CatalogFile = hyperv_driver.cat
+DriverVer   = 01/01/2026,1.0.0.0
+PnpLockDown = 1
 
 [DestinationDirs]
 DefaultDestDir = 12
-HyperVDetector_Device_CoInstaller_CopyFiles = 11
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
 
 [SourceDisksFiles]
 hyperv_driver.sys = 1,,
-WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll = 1
+
+;*****************************************
+; Install Section
+;*****************************************
 
 [Manufacturer]
-%ManufacturerName%=Standard,NT$ARCH$
+%ProviderString% = Standard,NTamd64
 
-[Standard.NT$ARCH$]
-%HyperVDetector.DeviceDesc%=HyperVDetector_Device, Root\HyperVDetector
+[Standard.NTamd64]
+%HypervDriver.DeviceDesc% = HypervDriver_Device, Root\HypervDetector
 
-[HyperVDetector_Device.NT]
-CopyFiles=Drivers_Dir
+[HypervDriver_Device.NT]
+CopyFiles = Drivers_Dir
 
 [Drivers_Dir]
 hyperv_driver.sys
 
-[HyperVDetector_Device.NT.HW]
-AddReg=HyperVDetector_Device.NT.AddReg
+;-------------- Service installation
+[HypervDriver_Device.NT.Services]
+AddService = hyperv_driver,%SPSVCINST_ASSOCSERVICE%, HypervDriver_Service_Inst
 
-[HyperVDetector_Device.NT.AddReg]
-HKR,,DeviceCharacteristics,0x10001,0x0100
-HKR,,Security,,"D:P(A;;GA;;;BA)(A;;GA;;;SY)"
-
-[HyperVDetector_Device.NT.Services]
-AddService = HyperVDetector,%SPSVCINST_ASSOCSERVICE%, HyperVDetector_Service_Inst
-
-[HyperVDetector_Service_Inst]
-DisplayName    = %HyperVDetector.SVCDESC%
+; -------------- hyperv_driver driver install sections
+[HypervDriver_Service_Inst]
+DisplayName    = %HypervDriver.SVCDESC%
 ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %12%\hyperv_driver.sys
 
-[HyperVDetector_Device.NT.CoInstallers]
-AddReg=HyperVDetector_Device_CoInstaller_AddReg
-CopyFiles=HyperVDetector_Device_CoInstaller_CopyFiles
+;
+;--- HypervDriver_Device Coinstaller installation ------
+;
 
-[HyperVDetector_Device_CoInstaller_AddReg]
-HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+[HypervDriver_Device.NT.Wdf]
+KmdfService = hyperv_driver, HypervDriver_wdfsect
 
-[HyperVDetector_Device_CoInstaller_CopyFiles]
-WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
-
-[HyperVDetector_Device.NT.Wdf]
-KmdfService =  HyperVDetector, HyperVDetector_wdfsect
-
-[HyperVDetector_wdfsect]
-KmdfLibraryVersion = $KMDFVERSION$
+[HypervDriver_wdfsect]
+KmdfLibraryVersion = 1.15
 
 [Strings]
-SPSVCINST_ASSOCSERVICE= 0x00000002
-ManufacturerName="HyperV Detector"
-DiskName = "HyperV Detector Installation Disk"
-HyperVDetector.DeviceDesc = "HyperV Detector Device"
-HyperVDetector.SVCDESC = "HyperV Detector Service"
+SPSVCINST_ASSOCSERVICE = 0x00000002
+ProviderString         = "HypervDetector"
+DiskName               = "Hyper-V Detector Driver Installation Disk"
+HypervDriver.DeviceDesc = "Hyper-V Detection Driver"
+HypervDriver.SVCDESC    = "Hyper-V Detection Driver Service"

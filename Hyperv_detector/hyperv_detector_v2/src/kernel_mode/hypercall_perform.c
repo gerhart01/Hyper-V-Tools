@@ -39,8 +39,8 @@ NTSTATUS InitializeHyperV(VOID)
 
 UINT64 HvMakeHypercall(
     _In_ UINT64 Control,
-    _In_opt_ UINT64 InputParam,
-    _In_opt_ UINT64 OutputParam
+    _In_ UINT64 InputParam,
+    _In_ UINT64 OutputParam
 )
 {
     if (!g_HyperVInitialized || !g_HypercallPage)

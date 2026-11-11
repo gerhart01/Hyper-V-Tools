@@ -1,5 +1,7 @@
 # Spider Stone GUI (.NET 10)
 
+Partitially AI generated
+
 A **.NET 10 / WinForms** front-end for the current [`Spider-Stone.ps1`](../Spider_Stone/Spider-Stone.ps1).
 
 Instead of re-implementing the analyzer in C# (which would drift from the maintained

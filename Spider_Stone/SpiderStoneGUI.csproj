@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>SpiderStoneGUI</AssemblyName>
+    <RootNamespace>SpiderStoneGUI</RootNamespace>
+    <Version>1.0</Version>
+    <Authors>Spider Stone</Authors>
+    <Company>Spider Stone</Company>
+    <Product>Spider Stone GUI</Product>
+    <Description>.NET 10 WinForms front-end for Spider-Stone.ps1 (Windows Optional Feature analyzer)</Description>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Elevate on launch: reading CBS registry + WinSxS needs Administrator. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!--
+    The GUI drives the current PowerShell script directly, so it is always in sync
+    with the maintained single source of truth in ..\Spider_Stone. Both files are
+    copied next to the executable (into a "scripts" sub-folder) at build time; nothing
+    is duplicated in source control.
+  -->
+  <!--
+    Built against the AI_FGF framework by project reference (sibling repo), like SpiderStoneFF —
+    so it always tracks the current framework source directly.
+    Requires the code-frameworks repo checked out next to spider-stone (../../code-frameworks).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\code-frameworks\src\AI_FGF\AI_FGF.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\Spider_Stone\Spider-Stone.ps1" Link="scripts\Spider-Stone.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Spider_Stone\WCPExtractor.psm1" Link="scripts\WCPExtractor.psm1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
